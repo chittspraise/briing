@@ -7,6 +7,7 @@ import {
   ScrollView,
   TouchableOpacity,
   ActivityIndicator,
+  
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { supabase } from '@/supabaseClient';
@@ -16,8 +17,6 @@ const ConfirmOrder = () => {
   const router = useRouter();
   const [order, setOrder] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-
-  // Profiles for shopper and traveler (fetched separately)
   const [shopperProfile, setShopperProfile] = useState<any>(null);
   const [travelerProfile, setTravelerProfile] = useState<any>(null);
 
@@ -25,7 +24,6 @@ const ConfirmOrder = () => {
     const fetchOrderAndProfiles = async () => {
       setLoading(true);
 
-      // Fetch order info
       const { data: orderData, error: orderError } = await supabase
         .from('product_orders')
         .select('*')
@@ -41,7 +39,6 @@ const ConfirmOrder = () => {
 
       setOrder(orderData);
 
-      // Fetch shopper profile (user who created the order)
       const { data: shopperData, error: shopperError } = await supabase
         .from('profiles')
         .select('id, first_name, image_url, email')
@@ -54,7 +51,6 @@ const ConfirmOrder = () => {
         setShopperProfile(shopperData);
       }
 
-      // Fetch traveler profile (current logged-in user)
       const { data: authData, error: authError } = await supabase.auth.getUser();
       if (authError || !authData.user) {
         console.error('Error fetching traveler user:', authError);
@@ -94,7 +90,6 @@ const ConfirmOrder = () => {
 
     const travelerId = userData.user.id;
 
-    // Check if already confirmed
     const { data: existing } = await supabase
       .from('confirmed_orders')
       .select('*')
@@ -108,7 +103,7 @@ const ConfirmOrder = () => {
 
     const total = parseFloat(order.price) + parseFloat(order.vat_estimate);
 
-    const { error } = await supabase.from('confirmed_orders').insert([
+    const { error: insertError } = await supabase.from('confirmed_orders').insert([
       {
         order_id: order.id,
         traveler_id: travelerId,
@@ -137,9 +132,20 @@ const ConfirmOrder = () => {
       },
     ]);
 
-    if (error) {
+    if (insertError) {
       alert('Failed to confirm the order.');
-      console.error(error);
+      console.error(insertError);
+      return;
+    }
+
+    const { error: updateError } = await supabase
+      .from('product_orders')
+      .update({ status: 'accepted' })
+      .eq('id', order.id);
+
+    if (updateError) {
+      alert('Order confirmed, but failed to update status.');
+      console.error(updateError);
     } else {
       alert('Order confirmed successfully!');
       router.replace('/');

@@ -1,27 +1,50 @@
+// MyOrdersPage.tsx (Stripe checkout integrated using stripe.ts helpers)
 import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
-  StyleSheet,
+  FlatList,
   TouchableOpacity,
   Image,
-  FlatList,
   Alert,
+  StyleSheet,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '@/supabaseClient';
+import { openStripeCheckout, setupStripePaymentSheet } from '@/app/lib/stripe';
+ // assuming this is the correct path
 
-const STATUS_CHAIN = ['pending', 'accepted', 'paid', 'purchased', 'intransit', 'delivery', 'received'];
-
-const renderStars = (rating: number) => {
-  const fullStars = Math.floor(rating);
-  const halfStar = rating - fullStars >= 0.5 ? 1 : 0;
-  const emptyStars = 5 - fullStars - halfStar;
-  return '★'.repeat(fullStars) + (halfStar ? '½' : '') + '☆'.repeat(emptyStars);
+// Order type remains the same
+// ...
+type Order = {
+  id: number;
+  user_id: string;
+  item_name: string;
+  store: string;
+  price: number;
+  vat_estimate: number;
+  traveler_reward: number;
+  image_url?: string;
+  created_at: string;
+  status: string;
+  destination: string;
+  source_country: string;
+  wait_time: string;
+  confirmed_id?: number;
+  shopper_id?: string;
+  traveler_id?: string;
+  first_name: string;
+  avatar?: string;
+  rating: number;
+  images: string[];
+  time: string;
 };
 
+const STATUS_CHAIN = ['pending', 'accepted', 'paid', 'purchased', 'intransit', 'delivered', 'received'];
+const renderStars = (rating: number) => '★'.repeat(Math.floor(rating)) + '☆'.repeat(5 - Math.floor(rating));
+
 const MyOrdersPage = () => {
-  const [orders, setOrders] = useState<any[]>([]);
+  const [orders, setOrders] = useState<Order[]>([]);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [dropdownsVisible, setDropdownsVisible] = useState<{ [key: number]: boolean }>({});
   const [loading, setLoading] = useState(false);
@@ -39,47 +62,31 @@ const MyOrdersPage = () => {
 
   const fetchOrders = async (userId: string) => {
     setLoading(true);
-
-    const { data: productOrders, error } = await supabase
-      .from('product_orders')
-      .select('*')
-      .order('created_at', { ascending: false });
-
-    if (error) {
-      console.error('Product order fetch error:', error);
-      return;
-    }
-
+    const { data: productOrders } = await supabase.from('product_orders').select('*').order('created_at', { ascending: false });
     const { data: confirmedOrders } = await supabase.from('confirmed_orders').select('*');
     const { data: profiles } = await supabase.from('profiles').select('id, first_name, image_url');
-
     const profileMap = new Map((profiles || []).map(p => [p.id, p]));
 
     const filteredOrders = (productOrders || []).filter(order => {
       const confirmed = confirmedOrders?.find(co => co.order_id === order.id);
-      const isShopper = confirmed?.shopper_id === userId;
-      const isTraveler = confirmed?.traveler_id === userId;
-      const isCreator = order.user_id === userId;
-
-      if (order.status === 'pending') {
-        return isCreator; // only creator sees pending
-      }
-
-      return isShopper || isTraveler; // both parties see active orders
+      return [order.user_id, confirmed?.shopper_id, confirmed?.traveler_id].includes(userId);
     });
 
-    const enriched = filteredOrders.map(order => {
+    const enriched: Order[] = filteredOrders.map(order => {
       const profile = profileMap.get(order.user_id);
+      const confirmed = confirmedOrders?.find(co => co.order_id === order.id);
       return {
         ...order,
+        confirmed_id: confirmed?.id,
+        shopper_id: confirmed?.shopper_id,
+        traveler_id: confirmed?.traveler_id,
         first_name: profile?.first_name || 'Unknown',
-        avatar: profile?.image_url || '',
+        avatar: profile?.image_url,
         rating: 4,
         images: order.image_url ? [order.image_url] : [],
         time: new Date(order.created_at).toLocaleString(),
       };
     });
-
     setOrders(enriched);
     setLoading(false);
   };
@@ -88,84 +95,84 @@ const MyOrdersPage = () => {
     setDropdownsVisible(prev => ({ ...prev, [id]: !prev[id] }));
   };
 
-  const updateStatus = async (order: any, newStatus: string) => {
-    const { error } = await supabase
-      .from('product_orders')
-      .update({ status: newStatus })
-      .eq('id', order.id);
+  const updateStatus = async (order: Order, newStatus: string) => {
+    const results = await Promise.all([
+      supabase.from('product_orders').update({ status: newStatus }).eq('id', order.id),
+      order.confirmed_id
+        ? supabase.from('confirmed_orders').update({ status: newStatus }).eq('id', order.confirmed_id)
+        : Promise.resolve({ error: null }),
+    ]);
+    if (results.some(r => r.error)) Alert.alert('Error', 'Status update failed.');
+    else fetchOrders(currentUserId!);
+  };
 
-    if (error) {
-      Alert.alert('Error', 'Status update failed');
-    } else if (currentUserId) {
-      fetchOrders(currentUserId);
+  const handleCheckout = async (order: Order) => {
+    const total = order.price + order.vat_estimate + order.traveler_reward;
+    try {
+      await setupStripePaymentSheet(total);
+      await openStripeCheckout();
+      await updateStatus(order, 'paid');
+      Alert.alert('Success', 'Payment completed successfully.');
+    } catch (err: any) {
+      Alert.alert('Payment Error', err.message);
     }
   };
 
   const renderStatusBar = (status: string) => {
-    if (status === 'cancelled') {
-      return (
-        <View style={styles.statusRow}>
-          <View style={[styles.statusBar, { backgroundColor: 'red' }]} />
-          {STATUS_CHAIN.slice(1).map((_, i) => (
-            <View key={i} style={[styles.statusBar, { backgroundColor: '#555' }]} />
-          ))}
-        </View>
-      );
-    }
-
     const index = STATUS_CHAIN.indexOf(status);
     return (
-      <View style={styles.statusRow}>
-        {STATUS_CHAIN.map((s, i) => (
-          <View key={s} style={[styles.statusBar, { backgroundColor: i <= index ? 'green' : '#555' }]} />
+      <View style={{ flexDirection: 'row', marginVertical: 8 }}>
+        {STATUS_CHAIN.map((_, i) => (
+          <View
+            key={i}
+            style={{ flex: 1, height: 6, marginHorizontal: 2, backgroundColor: status === 'cancelled' ? 'red' : i <= index ? 'green' : '#555' }}
+          />
         ))}
       </View>
     );
   };
 
-  const renderCard = (item: any) => {
+  const renderCard = (item: Order) => {
+    const shopperConfirmed = item.shopper_id === currentUserId;
     const isCreator = item.user_id === currentUserId;
-
     const travelerConfirmed = item.traveler_id === currentUserId;
-    const shopperConfirmed = item.user_id === currentUserId;
-
     let statusOptions: string[] = [];
 
-    if (item.status === 'pending' && isCreator) {
-      statusOptions = ['cancelled'];
-    } else if (item.status === 'pending' && !isCreator) {
-      statusOptions = ['accepted'];
-    } else if (travelerConfirmed) {
-      statusOptions = ['purchased', 'intransit', 'delivery', 'cancelled'];
-    } else if (shopperConfirmed) {
-      statusOptions = ['paid', 'received', 'cancelled'];
-    }
-
-    const dropdownVisible = dropdownsVisible[item.id];
+    if (item.status === 'pending' && isCreator) statusOptions = ['cancelled'];
+    else if (item.status === 'pending' && !isCreator) statusOptions = ['accepted'];
+    else if (travelerConfirmed) statusOptions = ['purchased', 'intransit', 'delivered', 'cancelled'];
+    else if (shopperConfirmed) statusOptions = ['paid', 'received', 'cancelled'];
 
     return (
       <View style={styles.card}>
-        <Text style={styles.statusLabel}>Status: {item.status}</Text>
-        {renderStatusBar(item.status)}
-
-        <View style={styles.profileRow}>
-          <Image source={{ uri: item.avatar }} style={styles.avatar} />
-          <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center' }}>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.name}>{item.first_name}</Text>
-              <Text style={styles.rating}>{renderStars(item.rating)}</Text>
-              <Text style={styles.time}>{item.time}</Text>
+        <View style={styles.statusRow}>
+          <Text style={styles.statusLabel}>Status: {item.status}</Text>
+          {shopperConfirmed && item.status === 'accepted' && (
+            <TouchableOpacity style={styles.checkoutButton} onPress={() => handleCheckout(item)}>
+              <Text style={styles.checkoutText}>Checkout</Text>
+            </TouchableOpacity>
+          )}
+          {shopperConfirmed && item.status === 'pending' && (
+            <View style={[styles.checkoutButton, styles.disabledButton]}>
+              <Text style={styles.checkoutText}>Checkout</Text>
             </View>
-
-            {statusOptions.length > 0 && (
-              <TouchableOpacity onPress={() => toggleDropdown(item.id)}>
-                <Ionicons name="menu" size={24} color="#fff" />
-              </TouchableOpacity>
-            )}
-          </View>
+          )}
         </View>
-
-        {dropdownVisible && (
+        {renderStatusBar(item.status)}
+        <View style={styles.profileRow}>
+          {item.avatar && <Image source={{ uri: item.avatar }} style={styles.avatar} />}
+          <View style={{ flex: 1 }}>
+            <Text style={styles.name}>{item.first_name}</Text>
+            <Text style={styles.rating}>{renderStars(item.rating)}</Text>
+            <Text style={styles.time}>{item.time}</Text>
+          </View>
+          {statusOptions.length > 0 && (
+            <TouchableOpacity onPress={() => toggleDropdown(item.id)}>
+              <Ionicons name="menu" size={24} color="#fff" />
+            </TouchableOpacity>
+          )}
+        </View>
+        {dropdownsVisible[item.id] && (
           <View style={styles.dropdownMenu}>
             {statusOptions.map((s) => (
               <TouchableOpacity key={s} onPress={() => updateStatus(item, s)}>
@@ -174,23 +181,19 @@ const MyOrdersPage = () => {
             ))}
           </View>
         )}
-
         <Text style={styles.productName}>{item.item_name}</Text>
-
-        {Array.isArray(item.images) && item.images.length > 0 && (
+        {item.images.length > 0 && (
           <FlatList
             horizontal
             data={item.images}
             keyExtractor={(uri) => uri}
-            renderItem={({ item: uri }) => (
-              <Image source={{ uri }} style={styles.productImage} />
-            )}
+            renderItem={({ item: uri }) => <Image source={{ uri }} style={styles.productImage} />}
           />
         )}
-
         <Text style={styles.price}>R{item.traveler_reward}</Text>
         <Text style={styles.productDetail}>Price: R{item.price} + Tax: R{item.vat_estimate}</Text>
-
+        <Text style={styles.label}>Store:</Text>
+        <Text style={styles.value}>{item.store}</Text>
         <View style={styles.infoBox}>
           <Text style={styles.label}>Deliver to:</Text>
           <Text style={styles.value}>{item.destination}</Text>
@@ -215,6 +218,7 @@ const MyOrdersPage = () => {
   );
 };
 
+
 const styles = StyleSheet.create({
   card: {
     backgroundColor: '#111',
@@ -226,17 +230,6 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontWeight: 'bold',
     marginBottom: 6,
-  },
-  statusRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 10,
-  },
-  statusBar: {
-    height: 6,
-    flex: 1,
-    marginHorizontal: 2,
-    borderRadius: 4,
   },
   profileRow: {
     flexDirection: 'row',
@@ -260,6 +253,33 @@ const styles = StyleSheet.create({
     color: '#888',
     fontSize: 12,
   },
+  statusRow: {
+  flexDirection: 'row',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+  marginBottom: 4,
+},
+checkoutButton: {
+  backgroundColor: '#fff',
+  paddingVertical: 6,
+  paddingHorizontal: 12,
+  borderRadius: 8,
+},
+checkoutText: {
+  color: '#000',
+  fontWeight: 'bold',
+},
+disabledButton: {
+  opacity: 0.3,
+},
+checkoutNote: {
+
+  color: '#ccc',
+  fontSize: 12,
+  marginBottom: 4,
+  textAlign: 'right',
+},
+
   dropdownMenu: {
     backgroundColor: '#222',
     padding: 8,

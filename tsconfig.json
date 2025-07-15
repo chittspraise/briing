@@ -2,16 +2,27 @@
   "extends": "expo/tsconfig.base",
   "compilerOptions": {
     "strict": true,
+    "allowImportingTsExtensions": true,
+    "module": "esnext",
+    "moduleResolution": "bundler",           // ✅ Fix for customConditions
+    "target": "esnext",
+    "lib": ["esnext", "dom"],
+    "esModuleInterop": true,
+    "skipLibCheck": true,
     "paths": {
-      "@/*": [
-        "./*"
-      ]
-    }
+      "@/*": ["./*"]
+    },
+    "customConditions": ["react-native"]     // ✅ Now valid with "bundler"
   },
   "include": [
     "**/*.ts",
     "**/*.tsx",
     ".expo/types/**/*.ts",
     "expo-env.d.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "**/dist",
+    "**/.temp"
   ]
 }
