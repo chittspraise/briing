@@ -104,23 +104,24 @@ const HomeScreen: React.FC = () => {
                 onPress={() => router.push('/OrdersPage')}
               >
                 <Image
-                  source={require('../../../assets/images/kkk.png')}
+                  source={require('../../../assets/images/gadgwts.jpg')}
                   style={styles.createOrderImage}
                 />
                 <View style={styles.orderRow}>
-                  <Ionicons name="add" size={18} color="#000" />
+                  <Ionicons name="add" size={20} color="#000" />
                   <Text style={styles.createOrderText}>Post New Order</Text>
                 </View>
               </TouchableOpacity>
 
+              <Text style={styles.sectionDescription}>Travelling? "Briing" some items for shoppers and get a healthy reward.</Text>
+
               {/* Travel Banner */}
               <TouchableOpacity
-                style={styles.travelBanner}
+                style={[styles.travelBanner, { marginTop: 20 }]} // Added marginTop for spacing
                 onPress={() => router.push('/travelPage')}
-                activeOpacity={0.8}
               >
                 <Image
-                  source={require('../../../assets/images/travel-01-512.webp')}
+                  source={require('../../../assets/images/Screenshot 2025-07-20 230656.png')}
                   style={styles.travelImage}
                 />
                 <View style={styles.travelOverlay}>
@@ -245,25 +246,44 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#bbb',
   },
-  createOrderBtn: {
-    backgroundColor: '#fff',
-    paddingVertical: 20,
+  sectionDescription: {
+    fontSize: 14,
+    color: '#bbb',
+    textAlign: 'center',
+    marginVertical: 15,
     paddingHorizontal: 10,
+  },
+  createOrderBtn: {
+    backgroundColor: '#000',
+    paddingVertical: 0,
+    paddingHorizontal: 0,
     borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
+    overflow: 'hidden',
     marginBottom: 20,
+    flexDirection: 'column',
+    height: 290, // Image height + overlay height
+    position: 'relative',
   },
   createOrderImage: {
-    width: 50,
-    height: 50,
-    resizeMode: 'contain',
-    marginBottom: 8,
+    width: '100%',
+    height: 250,
+    resizeMode: 'cover',
   },
   orderRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     gap: 8,
+    backgroundColor: 'rgba(255,255,255,0.85)',
+    paddingVertical: 10,
+    paddingHorizontal: 15,
+    width: '100%',
+    borderBottomLeftRadius: 10,
+    borderBottomRightRadius: 10,
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
   },
   createOrderText: {
     color: '#000',
@@ -274,18 +294,14 @@ const styles = StyleSheet.create({
     position: 'relative',
     overflow: 'hidden',
     borderRadius: 12,
-    backgroundColor: '#111',
-    height: 260,
-    justifyContent: 'flex-end',
+    backgroundColor: 'transparent',
+    justifyContent: 'flex-start',
     marginBottom: 25,
   },
   travelImage: {
     width: '100%',
-    height: '100%',
-    resizeMode: 'contain',
-    position: 'absolute',
-    top: 0,
-    left: 0,
+    height: 200,
+    resizeMode: 'cover',
     borderRadius: 12,
   },
   travelOverlay: {
@@ -294,8 +310,10 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.85)',
     paddingVertical: 10,
     paddingHorizontal: 15,
-    borderBottomLeftRadius: 12,
-    borderBottomRightRadius: 12,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignSelf: 'stretch',
+    marginTop: 10,
   },
   planeIcon: {
     marginRight: 6,

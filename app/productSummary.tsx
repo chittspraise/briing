@@ -13,16 +13,30 @@ import {
 import { AntDesign, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { supabase } from '@/supabaseClient';
-import { useOrder } from './providers/orderProvider';
+import { useTravelerOrderStore } from './store/travelerOrderStore';
 
 export default function SummaryPage() {
   const navigation = useNavigation<any>();
-  const orderContext = useOrder();
-  const order = orderContext?.order;
-  const clearOrder = orderContext?.clearOrder ?? (() => {});
+
+  const {
+    item_name,
+    store,
+    price,
+    quantity,
+    details,
+    with_box,
+    image_url,
+    deliver_from,
+    destination,
+    wait_time,
+    travelerId,
+    clearOrder,
+  } = useTravelerOrderStore();
+
   const [travelerReward, setTravelerReward] = useState('');
   const [userId, setUserId] = useState<string | null>(null);
 
+  // Get current user ID from Supabase on mount
   useEffect(() => {
     const getUser = async () => {
       const { data } = await supabase.auth.getUser();
@@ -31,49 +45,73 @@ export default function SummaryPage() {
       }
     };
     getUser();
+
+    console.log('🟡 Zustand store values on SummaryPage:', {
+      item_name,
+      price,
+      quantity,
+      store,
+      details,
+      with_box,
+      image_url,
+      deliver_from,
+      destination,
+      wait_time,
+      travelerId,
+    });
   }, []);
 
-  const numericPrice = parseFloat(order.price || '0') || 0;
+  // Calculate fees and totals
+  const numericPrice = parseFloat(price || '0') || 0;
   const platformFee = numericPrice * 0.15;
   const processingFee = numericPrice * 0.15;
   const vatEstimate = numericPrice * 0.15;
   const reward = parseFloat(travelerReward || '0') || 0;
   const estimatedTotal = numericPrice + platformFee + processingFee + vatEstimate + reward;
 
+  // Submit order to Supabase
   const handleRequestDelivery = async () => {
     if (!userId) {
-      Alert.alert('Error', 'User not logged in');
+      Alert.alert('Error', 'User not found. Please login again.');
       return;
     }
 
     const payload = {
-      item_name: order.item_name,
-      store: order.store || null, // ✅ Added this line
+      item_name,
+      store: store || null,
       price: numericPrice,
-      quantity: parseInt(order.quantity || '1'),
-      details: order.details,
-      with_box: order.with_box,
-      image_url: order.image_url,
-      source_country: order.deliver_from,
-      destination: order.destination,
-      wait_time: order.wait_time,
+      quantity: parseInt(quantity || '1', 10),
+      details,
+      with_box,
+      image_url,
+      source_country: deliver_from,
+      destination,
+      wait_time,
       platform_fee: platformFee,
       processing_fee: processingFee,
       vat_estimate: vatEstimate,
       traveler_reward: reward,
       estimated_total: estimatedTotal,
       user_id: userId,
+      traveler_id: travelerId || null, // explicitly null if undefined
+      status: 'pending',
     };
 
-    const { error } = await supabase.from('product_orders').insert(payload);
+    console.log('🚚 Submitting order with payload:', payload);
 
-    if (error) {
-      Alert.alert('Error', 'Could not create order');
-      console.error(error);
-    } else {
-      clearOrder();
-      navigation.navigate('(tabs)', { screen: 'home' });
-      Alert.alert('Success', 'Your delivery request has been submitted successfully.');
+    try {
+      const { error } = await supabase.from('product_orders').insert(payload);
+      if (error) {
+        Alert.alert('Error', 'Could not create order');
+        console.error('Supabase insert error:', error);
+      } else {
+        clearOrder();
+        Alert.alert('Success', 'Your delivery request has been submitted successfully.');
+        navigation.navigate('(tabs)', { screen: 'home' });
+      }
+    } catch (err) {
+      Alert.alert('Error', 'An unexpected error occurred.');
+      console.error('Unexpected error:', err);
     }
   };
 
@@ -97,7 +135,7 @@ export default function SummaryPage() {
             <MaterialCommunityIcons name="cube-outline" size={30} color="white" />
             <Text style={styles.productLogoText}>logo</Text>
           </View>
-          <Text style={styles.productTitle}>{order.item_name}</Text>
+          <Text style={styles.productTitle}>{item_name || 'N/A'}</Text>
         </View>
 
         {/* Delivery Info */}
@@ -105,15 +143,21 @@ export default function SummaryPage() {
           <Text style={styles.label}>Delivery route</Text>
           <View style={styles.detailRow}>
             <Text style={styles.subLabel}>Deliver from</Text>
-            <Text style={styles.value}>{order.deliver_from}</Text>
+            <Text style={styles.value}>{deliver_from || 'N/A'}</Text>
           </View>
           <View style={styles.detailRow}>
             <Text style={styles.subLabel}>Deliver to</Text>
-            <Text style={styles.value}>{order.destination}</Text>
+            <Text style={styles.value}>{destination || 'N/A'}</Text>
           </View>
           <View style={styles.detailRow}>
             <Text style={styles.subLabel}>Wait time</Text>
-            <Text style={styles.value}>{order.wait_time}</Text>
+            <Text style={styles.value}>{wait_time || 'N/A'}</Text>
+          </View>
+          <View style={styles.detailRow}>
+            <Text style={styles.subLabel}>Delivery type</Text>
+            <Text style={styles.value}>
+              {travelerId ? 'Private (specific traveler)' : 'Open to any traveler'}
+            </Text>
           </View>
         </View>
 
@@ -122,22 +166,22 @@ export default function SummaryPage() {
           <Text style={styles.label}>Order details</Text>
           <View style={styles.detailRow}>
             <Text style={styles.subLabel}>Quantity</Text>
-            <Text style={styles.value}>{order.quantity}</Text>
+            <Text style={styles.value}>{quantity || 'N/A'}</Text>
           </View>
           <View style={styles.detailRow}>
             <Text style={styles.subLabel}>Packaging</Text>
-            <Text style={styles.value}>{order.with_box ? 'With box' : 'Without box'}</Text>
+            <Text style={styles.value}>{with_box ? 'With box' : 'Without box'}</Text>
           </View>
           <View style={styles.detailRow}>
             <Text style={styles.subLabel}>Store</Text>
-            <Text style={styles.value}>{order.store || 'N/A'}</Text>
+            <Text style={styles.value}>{store || 'N/A'}</Text>
           </View>
         </View>
 
         {/* Description */}
         <View style={styles.section}>
           <Text style={styles.label}>Product details</Text>
-          <Text style={styles.value}>{order.details}</Text>
+          <Text style={styles.value}>{details || 'No details provided'}</Text>
         </View>
 
         {/* Reward */}
@@ -155,7 +199,7 @@ export default function SummaryPage() {
         {/* Cost Breakdown */}
         <View style={styles.section}>
           <Text style={styles.label}>Cost breakdown</Text>
-          {[ 
+          {[
             { label: 'Product price', value: `R${numericPrice.toFixed(2)}` },
             { label: 'VAT (estimated)', value: `R${vatEstimate.toFixed(2)}` },
             { label: 'Platform fee', value: `R${platformFee.toFixed(2)}` },

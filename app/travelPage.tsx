@@ -48,7 +48,15 @@ const TravelBookingPage: React.FC = () => {
 
     setLoading(true);
 
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+        Alert.alert('Error', 'You must be logged in to add a trip.');
+        setLoading(false);
+        return;
+    }
+
     const travelInfo = {
+      user_id: user.id,
       from_country: from.trim(),
       to_country: to.trim(),
       departure_date: departureDate,

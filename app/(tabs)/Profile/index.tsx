@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -13,19 +13,64 @@ import {
   MaterialIcons,
 } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
+import { supabase } from '@/supabaseClient';
 import type { StackNavigationProp } from '@react-navigation/stack';
 
 type RootStackParamList = {
   notifications: undefined;
   'settings/index': undefined;
-   invite : undefined;
-   help:undefined;
-   profile:undefined;
-  // Add other routes if needed
+  invite: undefined;
+  help: undefined;
+  profile: undefined;
+  'app/index': undefined; // Main entry screen
 };
 
 const ProfileScreen = () => {
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
+
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+
+  useEffect(() => {
+    const fetchProfile = async () => {
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser();
+
+      if (userError || !user) {
+        console.log('Error fetching user:', userError?.message);
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('first_name, last_name')
+        .eq('id', user.id)
+        .single();
+
+      if (error) {
+        console.log('Error fetching profile:', error.message);
+      } else if (data) {
+        setFirstName(data.first_name || '');
+        setLastName(data.last_name || '');
+      }
+    };
+
+    fetchProfile();
+  }, []);
+
+  const handleLogout = async () => {
+    const { error } = await supabase.auth.signOut();
+    if (error) {
+      console.error('Logout error:', error.message);
+    } else {
+      navigation.reset({
+        index: 0,
+        routes: [{ name: 'app/index' }], // ✅ Fixed destination
+      });
+    }
+  };
 
   return (
     <ScrollView style={styles.container}>
@@ -36,10 +81,10 @@ const ProfileScreen = () => {
           source={{ uri: 'https://placehold.co/100x100/000000/FFFFFF?text=PC' }}
         />
         <View>
-          <Text style={styles.name}>Praise Chitts</Text>
-          <TouchableOpacity
-           onPress={() => navigation.navigate('profile')}
->
+          <Text style={styles.name}>
+            {firstName || lastName ? `${firstName} ${lastName}` : 'Loading...'}
+          </Text>
+          <TouchableOpacity onPress={() => navigation.navigate('profile')}>
             <Text style={styles.editProfile}>Edit profile</Text>
           </TouchableOpacity>
         </View>
@@ -58,32 +103,44 @@ const ProfileScreen = () => {
           icon={<Feather name="settings" size={20} color="#000" />}
           onPress={() => navigation.navigate('settings/index')}
         />
-         
       </View>
 
       {/* Section: Support */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Support</Text>
-        <Option label="Check Help Center" icon={<Feather name="menu" size={20} color="#000" />} 
-                          onPress={() => navigation.navigate('help')}
+        <Option
+          label="Check Help Center"
+          icon={<Feather name="menu" size={20} color="#000" />}
+          onPress={() => navigation.navigate('help')}
         />
-        <Option label="Submit a request" icon={<Feather name="edit" size={20} color="#000" />} 
-                     onPress={() => navigation.navigate('help')}
-/>
+        <Option
+          label="Submit a request"
+          icon={<Feather name="edit" size={20} color="#000" />}
+          onPress={() => navigation.navigate('help')}
+        />
       </View>
 
       {/* Section: Referrals */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Refer</Text>
-        <Option label="Invite Friends" icon={<Feather name="gift" size={20} color="#000" />}
-                  onPress={() => navigation.navigate('invite')}
-                  />
-        <Option label="Coupons" icon={<Feather name="percent" size={20} color="#000" />} />
+        <Option
+          label="Invite Friends"
+          icon={<Feather name="gift" size={20} color="#000" />}
+          onPress={() => navigation.navigate('invite')}
+        />
+        <Option
+          label="Coupons"
+          icon={<Feather name="percent" size={20} color="#000" />}
+        />
       </View>
 
       {/* Section: Danger */}
       <View style={styles.section}>
-        <Option label="Log Out" icon={<MaterialIcons name="logout" size={20} color="#000" />} />
+        <Option
+          label="Log Out"
+          icon={<MaterialIcons name="logout" size={20} color="#000" />}
+          onPress={handleLogout}
+        />
       </View>
     </ScrollView>
   );

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -10,37 +10,80 @@ import {
   Alert,
 } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
-import { useNavigation } from '@react-navigation/native';
-import { useOrder } from './providers/orderProvider'; // Adjust the path as needed
+import { useNavigation, useRoute } from '@react-navigation/native';
+import { useTravelerOrderStore } from './store/travelerOrderStore';
 
 const DeliveryDetailsPage = () => {
   const navigation = useNavigation<any>();
-  const orderContext = useOrder();
-  if (!orderContext) {
-    throw new Error('OrderProvider is missing in the component tree.');
-  }
-  const { order, setOrder } = orderContext;
+  const route = useRoute();
 
-  const [deliverFrom, setDeliverFrom] = useState(order.deliver_from || 'United States of America');
-  const [deliverTo, setDeliverTo] = useState(order.destination || 'Midrand');
-  const [waitTime, setWaitTime] = useState(order.wait_time || 'Up to 1 month');
+  const { travelerId } = route.params as { travelerId?: string | null } ?? {};
+
+  const {
+    deliver_from,
+    destination,
+    wait_time,
+    setDeliveryDetails,
+    setTravelerId,
+    item_name,
+    store,
+    price,
+    quantity,
+    details,
+    with_box,
+    image_url,
+  } = useTravelerOrderStore();
+
+  const [deliverFrom, setDeliverFrom] = useState(deliver_from || 'United States of America');
+  const [deliverTo, setDeliverTo] = useState(destination || 'Midrand');
+  const [waitTime, setWaitTime] = useState(wait_time || 'Up to 1 month');
   const [loading, setLoading] = useState(false);
 
   const waitOptions = [
     '1 day', '2 days', '3 days', '1 week', '2 weeks', '3 weeks', 'Up to 1 month',
   ];
 
-  const proceedToSummary = async () => {
+  useEffect(() => {
+    // Set travelerId to store if it exists
+    setTravelerId(travelerId ?? null);
+    console.log(
+      travelerId
+        ? `🟢 travelerId set in store: ${travelerId}`
+        : 'ℹ️ No travelerId provided — cleared in store'
+    );
+  }, [travelerId]);
+
+  const proceedToSummary = () => {
     try {
       setLoading(true);
-      setOrder({
-        ...order,
+
+      // Save delivery details to store
+      setDeliveryDetails({
         deliver_from: deliverFrom,
         destination: deliverTo,
         wait_time: waitTime,
       });
+
+      console.log('✅ Delivery details saved to store:', {
+        deliver_from: deliverFrom,
+        destination: deliverTo,
+        wait_time: waitTime,
+      });
+
+      console.log('🧾 Existing product details in store:', {
+        item_name,
+        store,
+        price,
+        quantity,
+        details,
+        with_box,
+        image_url,
+      });
+
       setLoading(false);
-      navigation.navigate('productSummary');
+
+      // Navigate to productSummary with travelerId or without it
+      navigation.navigate('productSummary', travelerId ? { travelerId } : {});
     } catch (error) {
       setLoading(false);
       Alert.alert('Error', 'Could not save delivery details.');

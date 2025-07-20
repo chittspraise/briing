@@ -11,25 +11,17 @@ import {
   Alert,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
-import { useNavigation } from '@react-navigation/native';
-import { useOrder } from './providers/orderProvider';
+import { useNavigation, useRoute } from '@react-navigation/native';
+import { useTravelerOrderStore } from './store/travelerOrderStore';
 
-type RootStackParamList = {
-  ProductLink: undefined;
-  DeliveryDetails: undefined;
-};
+const CustomProduct = () => {
+  const navigation = useNavigation<any>();
+  const route = useRoute();
+  const { travelerId } = (route.params as { travelerId?: string | null }) || {};
 
-const ProductLinkPage = () => {
-  const navigation = useNavigation<import('@react-navigation/native').NavigationProp<RootStackParamList>>();
-  const orderContext = useOrder();
+  const { setOrderDetails, setTravelerId } = useTravelerOrderStore();
 
-  if (!orderContext) {
-    throw new Error('OrderProvider is missing in the component tree.');
-  }
-
-  const { setOrder } = orderContext;
-
-  const [productName, setName] = useState('');
+  const [productName, setProductName] = useState('');
   const [store, setStore] = useState('');
   const [price, setPrice] = useState('');
   const [quantity, setQuantity] = useState('1');
@@ -57,7 +49,7 @@ const ProductLinkPage = () => {
     }
   };
 
-  const proceedToDeliveryDetails = async () => {
+  const proceedToDeliveryDetails = () => {
     if (!productName.trim()) {
       Alert.alert('Invalid input', 'Product name is required');
       return;
@@ -75,18 +67,37 @@ const ProductLinkPage = () => {
 
     setLoading(true);
 
-    setOrder({
-      item_name: productName,
-      store: store || null, // store is optional
-      price,
-      quantity,
-      details,
+    const orderDetails = {
+      item_name: productName.trim(),
+      store: store.trim() || null,
+      price: price.trim(),
+      quantity: quantity.trim(),
+      details: details.trim(),
       with_box: withBox,
       image_url: images.join(','),
-    });
+      traveler_id: travelerId || null,  // Make sure to set null when travelerId isn't provided
+    };
+
+    console.log('🔵 Setting orderDetails in store:', orderDetails);
+    setOrderDetails(orderDetails);
+
+    // Log the Zustand store state after update (for debugging purposes)
+    setTimeout(() => {
+      const currentState = useTravelerOrderStore.getState();
+      console.log('🟢 Zustand store after setOrderDetails:', currentState);
+    }, 100);
+
+    if (travelerId) {
+      console.log('🔵 Setting travelerId in store:', travelerId);
+      setTravelerId(String(travelerId));
+      setTimeout(() => {
+        const currentState = useTravelerOrderStore.getState();
+        console.log('🟢 Zustand store after setTravelerId:', currentState);
+      }, 100);
+    }
 
     setLoading(false);
-    navigation.navigate('DeliveryDetails');
+    navigation.navigate('DeliveryDetails', { travelerId });
   };
 
   return (
@@ -95,7 +106,7 @@ const ProductLinkPage = () => {
       <TextInput
         style={styles.input}
         value={productName}
-        onChangeText={setName}
+        onChangeText={setProductName}
         placeholder="Enter product name"
         placeholderTextColor="#888"
       />
@@ -169,15 +180,13 @@ const ProductLinkPage = () => {
         onPress={proceedToDeliveryDetails}
         disabled={loading}
       >
-        <Text style={styles.buttonText}>
-          {loading ? 'Processing...' : 'Next'}
-        </Text>
+        <Text style={styles.buttonText}>{loading ? 'Processing...' : 'Next'}</Text>
       </TouchableOpacity>
     </ScrollView>
   );
 };
 
-export default ProductLinkPage;
+export default CustomProduct;
 
 const styles = StyleSheet.create({
   container: {

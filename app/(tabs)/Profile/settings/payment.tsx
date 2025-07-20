@@ -30,14 +30,7 @@ const PayoutMethodScreen: React.FC = () => {
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.container}>
-        {/* Header */}
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => Alert.alert('Back', 'Go back')}>
-            <Text style={styles.backButton}>{'<'}</Text>
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Payout Method</Text>
-          <View style={{ width: 24 }} />
-        </View>
+        {/* Removed manual header and back button */}
 
         {/* Country Picker */}
         <View style={styles.section}>
@@ -121,22 +114,6 @@ const styles = StyleSheet.create({
   container: {
     padding: 20,
     paddingBottom: 40,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 30,
-  },
-  backButton: {
-    fontSize: 24,
-    color: '#000',
-    fontWeight: 'bold',
-  },
-  headerTitle: {
-    fontSize: 20,
-    color: '#000',
-    fontWeight: 'bold',
   },
   section: {
     marginBottom: 25,

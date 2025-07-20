@@ -1,4 +1,3 @@
-// MyOrdersPage.tsx (Stripe checkout integrated using stripe.ts helpers)
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -10,12 +9,10 @@ import {
   StyleSheet,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { router, useRouter } from 'expo-router';
 import { supabase } from '@/supabaseClient';
 import { openStripeCheckout, setupStripePaymentSheet } from '@/app/lib/stripe';
- // assuming this is the correct path
 
-// Order type remains the same
-// ...
 type Order = {
   id: number;
   user_id: string;
@@ -40,8 +37,14 @@ type Order = {
   time: string;
 };
 
-const STATUS_CHAIN = ['pending', 'accepted', 'paid', 'purchased', 'intransit', 'delivered', 'received'];
-const renderStars = (rating: number) => '★'.repeat(Math.floor(rating)) + '☆'.repeat(5 - Math.floor(rating));
+const STATUS_CHAIN = ['pending', 'accepted', 'paid', 'purchased', 'intransit', 'delivered', 'received', 'declined'];
+const renderStars = (rating: number) =>
+  '★'.repeat(Math.floor(rating)) + '☆'.repeat(5 - Math.floor(rating));
+
+function generateChatId(orderId: string, userA: string, userB: string): string {
+  const [first, second] = [userA, userB].sort();
+  return `${orderId}_${first}_${second}`;
+}
 
 const MyOrdersPage = () => {
   const [orders, setOrders] = useState<Order[]>([]);
@@ -62,14 +65,33 @@ const MyOrdersPage = () => {
 
   const fetchOrders = async (userId: string) => {
     setLoading(true);
-    const { data: productOrders } = await supabase.from('product_orders').select('*').order('created_at', { ascending: false });
+    const { data: productOrders } = await supabase
+      .from('product_orders')
+      .select('*')
+      .order('created_at', { ascending: false });
+
     const { data: confirmedOrders } = await supabase.from('confirmed_orders').select('*');
     const { data: profiles } = await supabase.from('profiles').select('id, first_name, image_url');
     const profileMap = new Map((profiles || []).map(p => [p.id, p]));
 
+    // Key change: include orders where traveler_id === currentUserId
     const filteredOrders = (productOrders || []).filter(order => {
       const confirmed = confirmedOrders?.find(co => co.order_id === order.id);
-      return [order.user_id, confirmed?.shopper_id, confirmed?.traveler_id].includes(userId);
+
+      // Check if the current user is the assigned traveler and has declined the order
+      const isDirectlyDeclinedByTraveler = order.traveler_id === userId && order.status === 'declined';
+
+      // Check if the order was accepted by this traveler and then declined (via confirmed_orders)
+      const isConfirmedDeclinedByTraveler = confirmed?.traveler_id === userId && confirmed?.status === 'declined';
+
+      return (
+        !isDirectlyDeclinedByTraveler &&
+        !isConfirmedDeclinedByTraveler &&
+        (order.user_id === userId ||
+        confirmed?.shopper_id === userId ||
+        confirmed?.traveler_id === userId ||
+        order.traveler_id === userId)
+      );
     });
 
     const enriched: Order[] = filteredOrders.map(order => {
@@ -79,7 +101,7 @@ const MyOrdersPage = () => {
         ...order,
         confirmed_id: confirmed?.id,
         shopper_id: confirmed?.shopper_id,
-        traveler_id: confirmed?.traveler_id,
+        traveler_id: confirmed?.traveler_id || order.traveler_id, // fallback to product_orders.traveler_id
         first_name: profile?.first_name || 'Unknown',
         avatar: profile?.image_url,
         rating: 4,
@@ -96,14 +118,18 @@ const MyOrdersPage = () => {
   };
 
   const updateStatus = async (order: Order, newStatus: string) => {
-    const results = await Promise.all([
-      supabase.from('product_orders').update({ status: newStatus }).eq('id', order.id),
-      order.confirmed_id
-        ? supabase.from('confirmed_orders').update({ status: newStatus }).eq('id', order.confirmed_id)
-        : Promise.resolve({ error: null }),
-    ]);
-    if (results.some(r => r.error)) Alert.alert('Error', 'Status update failed.');
-    else fetchOrders(currentUserId!);
+    if (newStatus === 'accepted') {
+      router.push({ pathname: '/(tabs)/Orders/confirm/[confirmOrder]', params: { confirmOrder: order.id.toString() } });
+    } else {
+      const results = await Promise.all([
+        supabase.from('product_orders').update({ status: newStatus }).eq('id', order.id),
+        order.confirmed_id
+          ? supabase.from('confirmed_orders').update({ status: newStatus }).eq('id', order.confirmed_id)
+          : Promise.resolve({ error: null }),
+      ]);
+      if (results.some(r => r.error)) Alert.alert('Error', 'Status update failed.');
+      else fetchOrders(currentUserId!);
+    }
   };
 
   const handleCheckout = async (order: Order) => {
@@ -125,7 +151,12 @@ const MyOrdersPage = () => {
         {STATUS_CHAIN.map((_, i) => (
           <View
             key={i}
-            style={{ flex: 1, height: 6, marginHorizontal: 2, backgroundColor: status === 'cancelled' ? 'red' : i <= index ? 'green' : '#555' }}
+            style={{
+              flex: 1,
+              height: 6,
+              marginHorizontal: 2,
+              backgroundColor: status === 'cancelled' ? 'red' : i <= index ? 'green' : '#555',
+            }}
           />
         ))}
       </View>
@@ -141,24 +172,63 @@ const MyOrdersPage = () => {
     if (item.status === 'pending' && isCreator) statusOptions = ['cancelled'];
     else if (item.status === 'pending' && !isCreator) statusOptions = ['accepted'];
     else if (travelerConfirmed) statusOptions = ['purchased', 'intransit', 'delivered', 'cancelled'];
-    else if (shopperConfirmed) statusOptions = ['paid', 'received', 'cancelled'];
+    else if (shopperConfirmed || (isCreator && item.status === 'accepted')) statusOptions = ['received', 'cancelled'];
 
     return (
       <View style={styles.card}>
         <View style={styles.statusRow}>
           <Text style={styles.statusLabel}>Status: {item.status}</Text>
-          {shopperConfirmed && item.status === 'accepted' && (
+          {isCreator && item.status === 'accepted' && (
             <TouchableOpacity style={styles.checkoutButton} onPress={() => handleCheckout(item)}>
               <Text style={styles.checkoutText}>Checkout</Text>
             </TouchableOpacity>
           )}
-          {shopperConfirmed && item.status === 'pending' && (
+          {isCreator && item.status === 'pending' && (
             <View style={[styles.checkoutButton, styles.disabledButton]}>
               <Text style={styles.checkoutText}>Checkout</Text>
             </View>
           )}
         </View>
         {renderStatusBar(item.status)}
+
+        {travelerConfirmed && item.status === 'pending' && (
+          <View style={styles.travelerActions}>
+            <TouchableOpacity
+              style={styles.actionButton}
+              onPress={() => {
+                const chatId = generateChatId(item.id.toString(), currentUserId!, item.user_id);
+                router.push({
+                  pathname: '/Orders/[chatId]',
+                  params: {
+                    chatId,
+                    receiverId: item.user_id,
+                    senderId: currentUserId,
+                  },
+                });
+              }}
+            >
+              <Text style={styles.actionButtonText}>Chat</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.actionButton, styles.acceptButton]}
+              onPress={() => {
+                router.push({
+                  pathname: '/(tabs)/Orders/confirm/[confirmOrder]',
+                  params: { confirmOrder: item.id.toString() },
+                });
+              }}
+            >
+              <Text style={styles.actionButtonText}>Accept</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.actionButton, styles.declineButton]}
+              onPress={() => updateStatus(item, 'declined')}
+            >
+              <Text style={styles.actionButtonText}>Decline</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
         <View style={styles.profileRow}>
           {item.avatar && <Image source={{ uri: item.avatar }} style={styles.avatar} />}
           <View style={{ flex: 1 }}>
@@ -166,7 +236,7 @@ const MyOrdersPage = () => {
             <Text style={styles.rating}>{renderStars(item.rating)}</Text>
             <Text style={styles.time}>{item.time}</Text>
           </View>
-          {statusOptions.length > 0 && (
+          {statusOptions.length > 0 && !(travelerConfirmed && item.status === 'pending') && (
             <TouchableOpacity onPress={() => toggleDropdown(item.id)}>
               <Ionicons name="menu" size={24} color="#fff" />
             </TouchableOpacity>
@@ -174,7 +244,7 @@ const MyOrdersPage = () => {
         </View>
         {dropdownsVisible[item.id] && (
           <View style={styles.dropdownMenu}>
-            {statusOptions.map((s) => (
+            {statusOptions.map(s => (
               <TouchableOpacity key={s} onPress={() => updateStatus(item, s)}>
                 <Text style={styles.dropdownItem}>{s}</Text>
               </TouchableOpacity>
@@ -186,7 +256,7 @@ const MyOrdersPage = () => {
           <FlatList
             horizontal
             data={item.images}
-            keyExtractor={(uri) => uri}
+            keyExtractor={uri => uri}
             renderItem={({ item: uri }) => <Image source={{ uri }} style={styles.productImage} />}
           />
         )}
@@ -209,7 +279,7 @@ const MyOrdersPage = () => {
   return (
     <FlatList
       data={orders}
-      keyExtractor={(item) => item.id.toString()}
+      keyExtractor={item => item.id.toString()}
       renderItem={({ item }) => renderCard(item)}
       refreshing={loading}
       onRefresh={() => currentUserId && fetchOrders(currentUserId)}
@@ -217,7 +287,6 @@ const MyOrdersPage = () => {
     />
   );
 };
-
 
 const styles = StyleSheet.create({
   card: {
@@ -254,32 +323,24 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
   statusRow: {
-  flexDirection: 'row',
-  justifyContent: 'space-between',
-  alignItems: 'center',
-  marginBottom: 4,
-},
-checkoutButton: {
-  backgroundColor: '#fff',
-  paddingVertical: 6,
-  paddingHorizontal: 12,
-  borderRadius: 8,
-},
-checkoutText: {
-  color: '#000',
-  fontWeight: 'bold',
-},
-disabledButton: {
-  opacity: 0.3,
-},
-checkoutNote: {
-
-  color: '#ccc',
-  fontSize: 12,
-  marginBottom: 4,
-  textAlign: 'right',
-},
-
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  checkoutButton: {
+    backgroundColor: '#fff',
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+  },
+  checkoutText: {
+    color: '#000',
+    fontWeight: 'bold',
+  },
+  disabledButton: {
+    opacity: 0.3,
+  },
   dropdownMenu: {
     backgroundColor: '#222',
     padding: 8,
@@ -322,6 +383,28 @@ checkoutNote: {
     color: '#fff',
     fontSize: 14,
     marginBottom: 6,
+  },
+  travelerActions: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginTop: 10,
+    marginBottom: 15,
+  },
+  actionButton: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    backgroundColor: '#333',
+  },
+  actionButtonText: {
+    color: '#fff',
+    fontWeight: 'bold',
+  },
+  acceptButton: {
+    backgroundColor: '#0a0',
+  },
+  declineButton: {
+    backgroundColor: '#a00',
   },
 });
 

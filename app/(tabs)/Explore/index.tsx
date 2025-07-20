@@ -11,13 +11,16 @@ import {
   NativeSyntheticEvent,
   ActivityIndicator,
   Alert,
+  TouchableOpacity,
 } from 'react-native';
-import { supabase } from '@/supabaseClient'; // Adjust path to your Supabase client
+import { useNavigation } from '@react-navigation/native';
+import { supabase } from '@/supabaseClient';
+import { useTravelerOrderStore } from '@/app/store/travelerOrderStore';
+
 
 const { width } = Dimensions.get('window');
 
 const destinations = [
- 
   {
     id: '2',
     name: 'New York',
@@ -65,14 +68,13 @@ const confirmedOffers = [
 ];
 
 const popularStores = [
- 
   {
     id: '3',
     name: 'Amazon',
     logo: 'https://1000logos.net/wp-content/uploads/2016/10/Amazon-logo-meaning.jpg',
     purchases: 4200,
   },
-   {
+  {
     id: '1',
     name: 'Apple Store',
     logo: 'https://upload.wikimedia.org/wikipedia/commons/f/fa/Apple_logo_black.svg',
@@ -86,13 +88,7 @@ const popularStores = [
   },
 ];
 
-const PaginationDots = ({
-  count,
-  activeIndex,
-}: {
-  count: number;
-  activeIndex: number;
-}) => (
+const PaginationDots = ({ count, activeIndex }: { count: number; activeIndex: number }) => (
   <View style={styles.paginationContainer}>
     {Array.from({ length: count }).map((_, index) => (
       <View
@@ -110,9 +106,11 @@ const ExplorePage = () => {
   const [activeDestination, setActiveDestination] = useState(0);
   const [activeOffer, setActiveOffer] = useState(0);
   const [activeStore, setActiveStore] = useState(0);
-
   const [travelers, setTravelers] = useState<any[]>([]);
   const [loadingTravelers, setLoadingTravelers] = useState(true);
+
+  const navigation = useNavigation<any>();
+  const setTravelerId = useTravelerOrderStore((state) => state.setTravelerId);
 
   useEffect(() => {
     fetchTravelers();
@@ -131,16 +129,19 @@ const ExplorePage = () => {
         console.error('Error fetching travelers:', error);
         Alert.alert('Error', 'Failed to fetch travelers.');
       } else if (data) {
-        const mappedTravelers = data.map((item, index) => ({
-          id: item.id ?? index.toString(),
+        const uuidRegex = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
+        const validTravelers = data.filter(item => item.user_id && typeof item.user_id === 'string' && uuidRegex.test(item.user_id));
+
+        const mappedTravelers = validTravelers.map(item => ({
+          id: item.user_id!,
           name: item.traveler_name ?? 'Unknown',
           from: item.from_country ?? 'Unknown',
           to: item.to_country ?? 'Unknown',
-          budget: item.notes?.match(/\d+/)?.[0] ?? 'N/A', // Extract budget from notes if possible
+          budget: item.notes?.match(/\d+/)?.[0] ?? 'N/A',
           departure_date: item.departure_date ?? 'N/A',
           return_date: item.return_date ?? '',
           is_round_trip: !!item.return_date,
-          avatar: 'https://randomuser.me/api/portraits/lego/1.jpg', // Placeholder avatar
+          avatar: 'https://randomuser.me/api/portraits/lego/1.jpg',
         }));
         setTravelers(mappedTravelers);
       }
@@ -159,13 +160,16 @@ const ExplorePage = () => {
       setIndex(index);
     };
 
+  const handleRequestDelivery = (travelerId: string) => {
+    setTravelerId(travelerId);
+    navigation.navigate('customProduct', { travelerId });
+    
+
+  };
+
   const renderCard = (item: any) => (
     <View style={styles.card}>
-      <Image
-        source={{ uri: item.imageUrl }}
-        style={styles.image}
-        resizeMode="cover"
-      />
+      <Image source={{ uri: item.imageUrl }} style={styles.image} resizeMode="cover" />
       <View style={styles.cardContent}>
         <Text style={styles.destName}>{item.name}</Text>
         {item.orders && item.offers && (
@@ -179,7 +183,6 @@ const ExplorePage = () => {
     </View>
   );
 
-  // Improved traveler card
   const renderTraveler = ({ item }: { item: any }) => (
     <View style={styles.travelerCard}>
       <Image source={{ uri: item.avatar }} style={styles.avatar} />
@@ -188,7 +191,6 @@ const ExplorePage = () => {
         <Text style={styles.travelerRoute}>
           {item.from} ➡️ {item.to}
         </Text>
-
         <View style={styles.tripDetailsRow}>
           <View style={styles.tripDetail}>
             <Text style={styles.tripLabel}>Departure</Text>
@@ -201,22 +203,25 @@ const ExplorePage = () => {
             </View>
           )}
         </View>
-
         <Text style={styles.travelerBudget}>Budget: R{item.budget}</Text>
+
+        <TouchableOpacity
+          style={styles.requestButton}
+          onPress={() => handleRequestDelivery(item.id)}
+        >
+          <Text style={styles.requestButtonText}>Request Delivery</Text>
+        </TouchableOpacity>
       </View>
     </View>
   );
 
   return (
     <ScrollView style={styles.container}>
-      {/* Upcoming Travelers */}
       <Text style={styles.sectionTitle}>Upcoming Travelers</Text>
       {loadingTravelers ? (
         <ActivityIndicator size="large" color="#fff" style={{ marginVertical: 20 }} />
       ) : travelers.length === 0 ? (
-        <Text style={{ color: '#fff', marginLeft: 16 }}>
-          No upcoming travelers found.
-        </Text>
+        <Text style={{ color: '#fff', marginLeft: 16 }}>No upcoming travelers found.</Text>
       ) : (
         <FlatList
           data={travelers}
@@ -228,7 +233,6 @@ const ExplorePage = () => {
         />
       )}
 
-      {/* Other sections unchanged */}
       <Text style={styles.sectionTitle}>Highest Paying Travel Destinations</Text>
       <FlatList
         horizontal
@@ -349,7 +353,6 @@ const styles = StyleSheet.create({
   inactiveDot: {
     backgroundColor: '#777',
   },
-
   travelerCard: {
     backgroundColor: '#121212',
     borderRadius: 12,
@@ -408,6 +411,18 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
     color: '#fff',
+  },
+  requestButton: {
+    backgroundColor: '#fff',
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    marginTop: 10,
+    alignSelf: 'flex-start',
+  },
+  requestButtonText: {
+    color: '#000',
+    fontWeight: '700',
   },
 });
 

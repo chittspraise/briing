@@ -8,9 +8,11 @@ import { OrderProvider } from './providers/orderProvider';
 import { TravelProvider } from './providers/travelProvider';
 import { supabase } from '@/supabaseClient';
 import { useEffect, useState } from 'react';
-import { View, Text, ActivityIndicator } from 'react-native';
-import { StripeProvider } from '@stripe/stripe-react-native'; // ✅ ADD THIS
+import { View, Text, ActivityIndicator, Linking } from 'react-native';
+import { StripeProvider } from '@stripe/stripe-react-native';
+import * as WebBrowser from 'expo-web-browser';
 
+WebBrowser.maybeCompleteAuthSession();
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
@@ -34,7 +36,15 @@ export default function RootLayout() {
       setUserSession(session?.user ?? null);
     });
 
-    return () => listener?.subscription.unsubscribe();
+    const urlListener = Linking.addEventListener('url', async ({ url }) => {
+      const { error } = await supabase.auth.exchangeCodeForSession(url);
+      if (error) console.error('Deep link session exchange failed:', error);
+    });
+
+    return () => {
+      listener?.subscription.unsubscribe();
+      urlListener.remove();
+    };
   }, []);
 
   if (!loaded || sessionLoading) {
@@ -48,13 +58,16 @@ export default function RootLayout() {
 
   return (
     <StripeProvider
-      publishableKey="pk_test_51QWMaiC2SQuTnTNRszks2HmWc07cc1dsHmE3sarUSAw2R9sHGr0bX9fDdVygKR7GTWF3S54VOlQpii6QQVFr3cu200uYs2qzWn" // 🔑 Use ENV in production
-      merchantIdentifier="merchant.com.chitts" // optional for Apple Pay
+      publishableKey="pk_test_51QWMaiC2SQuTnTNRszks2HmWc07cc1dsHmE3sarUSAw2R9sHGr0bX9fDdVygKR7GTWF3S54VOlQpii6QQVFr3cu200uYs2qzWn"
+      merchantIdentifier="merchant.com.chitts"
     >
       <OrderProvider>
         <TravelProvider>
           <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
             <Stack screenOptions={{ headerShown: false }}>
+              {/* Allow deep link access regardless of login */}
+              <Stack.Screen name="(tabs)/Profile/settings/passwordReset" />
+
               {!userSession ? (
                 <Stack.Screen name="AuthScreen" />
               ) : (

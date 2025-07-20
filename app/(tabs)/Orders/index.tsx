@@ -92,7 +92,8 @@ const OrderPage = () => {
         image_url,
         user_id,
         store
-      `);
+      `)
+      .order('created_at', { ascending: false });
 
     if (ordersError) {
       console.error('Fetch requests error:', ordersError);

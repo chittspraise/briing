@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -10,28 +10,93 @@ import {
   Alert,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { supabase } from '@/supabaseClient';
 
 const AccountDetailsScreen: React.FC = () => {
   const router = useRouter();
+  const [email, setEmail] = useState('');
+  const [phoneNumber, setPhoneNumber] = useState('');
+  const [isEmailVerified, setIsEmailVerified] = useState(false);
+  const [isPhoneVerified, setIsPhoneVerified] = useState(false);
+  const [userId, setUserId] = useState<string | null>(null);
 
-  const [email, setEmail] = useState('praizechitts@gmail.com');
-  const [phoneNumber, setPhoneNumber] = useState('+27 78 985 7143');
-  const [isEmailVerified] = useState(true);
-  const [isPhoneVerified] = useState(true);
+  useEffect(() => {
+    (async () => {
+      const {
+        data: { user },
+        error,
+      } = await supabase.auth.getUser();
 
-  const handleChangePassword = () => {
-    Alert.alert('Password Reset', 'A recovery link has been sent to your email.');
+      if (error || !user) {
+        Alert.alert('Error', 'Could not fetch user.');
+        return;
+      }
+
+      setUserId(user.id);
+      setEmail(user.email ?? '');
+
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('phone')
+        .eq('id', user.id)
+        .single();
+
+      if (!profileError && profile) {
+        setPhoneNumber(profile.phone || '');
+        setIsPhoneVerified(true); // update based on logic if needed
+        setIsEmailVerified(true); // update based on logic if needed
+      }
+    })();
+  }, []);
+
+  const handleChangePassword = async () => {
+    const { error } = await supabase.auth.resetPasswordForEmail(email);
+
+    if (error) {
+      Alert.alert('Error', error.message);
+    } else {
+      Alert.alert('Password Reset', 'A recovery link has been sent to your email.');
+    }
   };
 
-  const handleUpdateEmail = () => {
-    Alert.alert('Update Email', `Email updated to: ${email}`);
+  const handleUpdateEmail = async () => {
+    if (!userId) return;
+
+    const { error: updateAuthError } = await supabase.auth.updateUser({ email });
+
+    if (updateAuthError) {
+      Alert.alert('Error', updateAuthError.message);
+      return;
+    }
+
+    const { error: updateProfileError } = await supabase
+      .from('profiles')
+      .update({ email })
+      .eq('id', userId);
+
+    if (updateProfileError) {
+      Alert.alert('Error', updateProfileError.message);
+    } else {
+      Alert.alert('Success', 'Email updated.');
+    }
   };
 
-  const handleUpdatePhoneNumber = () => {
-    Alert.alert('Update Phone', `Phone number updated to: ${phoneNumber}`);
+  const handleUpdatePhoneNumber = async () => {
+    if (!userId) return;
+
+    const { error } = await supabase
+      .from('profiles')
+      .update({ phone: phoneNumber })
+      .eq('id', userId);
+
+    if (error) {
+      Alert.alert('Error', error.message);
+    } else {
+      Alert.alert('Success', 'Phone number updated.');
+    }
   };
 
-  const handleDeleteAccount = () => {
+  const handleDeleteAccount = async () => {
     Alert.alert(
       'Delete Account',
       'Are you sure you want to delete your account? This action cannot be undone.',
@@ -39,8 +104,26 @@ const AccountDetailsScreen: React.FC = () => {
         { text: 'Cancel', style: 'cancel' },
         {
           text: 'Delete',
-          onPress: () => Alert.alert('Account Deleted', 'Your account has been deleted.'),
           style: 'destructive',
+          onPress: async () => {
+            if (!userId) return;
+
+            // Delete from profiles first
+            const { error: profileError } = await supabase
+              .from('profiles')
+              .delete()
+              .eq('id', userId);
+
+            // Delete from auth (requires elevated API access)
+            const { error: authError } = await supabase.auth.admin.deleteUser(userId);
+
+            if (profileError || authError) {
+              Alert.alert('Error', profileError?.message || authError?.message);
+            } else {
+              Alert.alert('Account Deleted', 'Your account has been deleted.');
+              router.replace('/'); // go to main screen
+            }
+          },
         },
       ]
     );
@@ -49,15 +132,8 @@ const AccountDetailsScreen: React.FC = () => {
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView style={styles.container}>
-        {/* Header */}
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()}>
-            <Text style={styles.backButton}>{'<'}</Text>
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Account details</Text>
-          {/* Spacer for alignment */}
-          <View style={{ width: 24 }} />
-        </View>
+        {/* You can optionally add a small title here inside the content */}
+        {/* <Text style={styles.pageTitle}>Account details</Text> */}
 
         {/* Change Password */}
         <View style={styles.section}>
@@ -140,22 +216,6 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 20,
     backgroundColor: '#FFFFFF',
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 30,
-  },
-  backButton: {
-    fontSize: 24,
-    color: '#000',
-    fontWeight: 'bold',
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#000',
   },
   section: {
     marginBottom: 25,

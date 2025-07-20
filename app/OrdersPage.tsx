@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { useNavigation } from '@react-navigation/native';
-import { useOrder } from './providers/orderProvider';
+import { useTravelerOrderStore } from './store/travelerOrderStore';
 import { supabase } from '@/supabaseClient';
 
 type RootStackParamList = {
@@ -23,13 +23,7 @@ type RootStackParamList = {
 
 const ProductLinkPage = () => {
   const navigation = useNavigation<import('@react-navigation/native').NavigationProp<RootStackParamList>>();
-  const orderContext = useOrder();
-
-  if (!orderContext) {
-    throw new Error('OrderProvider is missing in the component tree.');
-  }
-
-  const { setOrder } = orderContext;
+  const { setOrderDetails } = useTravelerOrderStore();
 
   const [productName, setName] = useState('');
   const [store, setStore] = useState('');
@@ -98,7 +92,7 @@ const ProductLinkPage = () => {
 
     setLoading(true);
 
-    setOrder({
+    setOrderDetails({
       item_name: productName,
       store: store || null,
       price,

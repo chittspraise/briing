@@ -20,11 +20,8 @@ const WalletScreen: React.FC = () => {
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView style={styles.container}>
-        {/* Header */}
+        {/* Header Title only - remove manual back button */}
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => Alert.alert('Back', 'Go back to previous screen')}>
-            <Text style={styles.backButton}>{'<'}</Text>
-          </TouchableOpacity>
           <Text style={styles.headerTitle}>Wallet</Text>
           <View style={{ width: 24 }} />
         </View>
@@ -66,11 +63,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: 30,
-  },
-  backButton: {
-    fontSize: 24,
-    color: '#000000',
-    fontWeight: 'bold',
   },
   headerTitle: {
     fontSize: 20,
@@ -120,3 +112,4 @@ const styles = StyleSheet.create({
 });
 
 export default WalletScreen;
+
