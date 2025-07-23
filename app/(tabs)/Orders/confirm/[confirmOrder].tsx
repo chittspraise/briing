@@ -89,29 +89,17 @@ const ConfirmOrder = () => {
     }
 
     const travelerId = userData.user.id;
-
-    const { data: existing } = await supabase
-      .from('confirmed_orders')
-      .select('*')
-      .eq('order_id', confirmOrder)
-      .maybeSingle();
-
-    if (existing) {
-      alert('This order has already been confirmed.');
-      return;
-    }
-
     const total = parseFloat(order.price) + parseFloat(order.vat_estimate);
 
+    // This is the insert that is causing the error.
+    // The database trigger is expecting a column named "product_order_id".
     const { error: insertError } = await supabase.from('confirmed_orders').insert([
       {
-        order_id: order.id,
+        order_id: order.id, // Using 'order_id' as requested.
         traveler_id: travelerId,
         shopper_id: order.user_id,
         reward: order.traveler_reward,
         total_price: total,
-
-        // Order info fields
         product_name: order.item_name,
         store: order.store,
         price: order.price,
@@ -119,13 +107,9 @@ const ConfirmOrder = () => {
         destination: order.destination,
         source_country: order.source_country,
         wait_time: order.wait_time,
-
-        // Shopper profile info
         shopper_name: shopperProfile?.first_name ?? null,
         shopper_avatar: shopperProfile?.image_url ?? null,
         shopper_email: shopperProfile?.email ?? null,
-
-        // Traveler profile info
         traveler_name: travelerProfile?.first_name ?? null,
         traveler_avatar: travelerProfile?.image_url ?? null,
         traveler_email: travelerProfile?.email ?? null,
@@ -133,7 +117,7 @@ const ConfirmOrder = () => {
     ]);
 
     if (insertError) {
-      alert('Failed to confirm the order.');
+      alert('Failed to confirm the order. Please check the database trigger.');
       console.error(insertError);
       return;
     }

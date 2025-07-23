@@ -285,9 +285,9 @@ const OrderPage = () => {
                 />
               )}
 
-              <Text style={styles.price}>R{item.traveler_reward}</Text>
+              <Text style={styles.price}>ZAR{item.traveler_reward}</Text>
               <Text style={styles.product}>
-                Price: R{item.price} + Tax: R{item.vat_estimate}
+                Price: ZAR{item.price} + Tax: ZAR{item.vat_estimate}
               </Text>
 
               <TouchableOpacity

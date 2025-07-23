@@ -1,16 +1,18 @@
 import '../polyfills';
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { useFonts } from 'expo-font';
-import { Stack } from 'expo-router';
+import { Stack, router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { OrderProvider } from './providers/orderProvider';
 import { TravelProvider } from './providers/travelProvider';
 import { supabase } from '@/supabaseClient';
 import { useEffect, useState } from 'react';
-import { View, Text, ActivityIndicator, Linking } from 'react-native';
+import { View, Text, ActivityIndicator } from 'react-native';
 import { StripeProvider } from '@stripe/stripe-react-native';
 import * as WebBrowser from 'expo-web-browser';
+import * as Linking from 'expo-linking';
+
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -19,6 +21,19 @@ export default function RootLayout() {
   const [loaded] = useFonts({
     SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
   });
+
+  const url = Linking.useURL();
+  useEffect(() => {
+    if (url) {
+      const { path, queryParams } = Linking.parse(url);
+      if (path === 'reset-password' && queryParams?.token) {
+        router.replace({
+          pathname: '/reset-password',
+          params: { access_token: queryParams.token, ...queryParams },
+        });
+      }
+    }
+  }, [url]);
 
   const [sessionLoading, setSessionLoading] = useState(true);
   const [userSession, setUserSession] = useState<import('@supabase/supabase-js').User | null>(null);
@@ -36,14 +51,9 @@ export default function RootLayout() {
       setUserSession(session?.user ?? null);
     });
 
-    const urlListener = Linking.addEventListener('url', async ({ url }) => {
-      const { error } = await supabase.auth.exchangeCodeForSession(url);
-      if (error) console.error('Deep link session exchange failed:', error);
-    });
 
     return () => {
       listener?.subscription.unsubscribe();
-      urlListener.remove();
     };
   }, []);
 
@@ -65,11 +75,13 @@ export default function RootLayout() {
         <TravelProvider>
           <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
             <Stack screenOptions={{ headerShown: false }}>
-              {/* Allow deep link access regardless of login */}
-              <Stack.Screen name="(tabs)/Profile/settings/passwordReset" />
-
               {!userSession ? (
-                <Stack.Screen name="AuthScreen" />
+                <>
+                  <Stack.Screen name="index" />
+                  <Stack.Screen name="forgot-password" />
+                  <Stack.Screen name="reset-password" />
+                  <Stack.Screen name="must-be-signed-in" />
+                </>
               ) : (
                 <>
                   <Stack.Screen name="index" />
@@ -77,9 +89,6 @@ export default function RootLayout() {
                   <Stack.Screen name="+not-found" />
                   <Stack.Screen name="travelPage" />
                   <Stack.Screen name="OrdersPage" />
-                  <Stack.Screen name="notifications" />
-                  <Stack.Screen name="editProfile" />
-                  <Stack.Screen name="settings/index" />
                 </>
               )}
             </Stack>

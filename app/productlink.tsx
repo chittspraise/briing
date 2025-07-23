@@ -8,15 +8,16 @@ import {
   Switch,
   Image,
   ScrollView,
+  FlatList,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { useNavigation } from '@react-navigation/native';
-import { useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams, router } from 'expo-router';
 import { useTravelerOrderStore } from './store/travelerOrderStore';
 
 type RootStackParamList = {
   ProductLink: undefined;
-  DeliveryDetails: undefined;
+  productSummary: undefined;
 };
 
 const ProductLinkPage = () => {
@@ -24,21 +25,29 @@ const ProductLinkPage = () => {
 
   const params = useLocalSearchParams();
   const travelerIdFromParams = params.travelerId as string | undefined;
+  const url = params.url as string;
+  const name = params.name as string;
+  const images = JSON.parse(params.images as string || '[]');
+  const productNameFromParams = params.productName as string;
+  const priceFromParams = params.price as string;
 
-  const setTravelerId = useTravelerOrderStore((state) => state.setTravelerId);
+  const { setOrderDetails } = useTravelerOrderStore();
 
   useEffect(() => {
     if (travelerIdFromParams) {
-      setTravelerId(travelerIdFromParams);
+      useTravelerOrderStore.setState({ travelerId: travelerIdFromParams });
     }
-  }, [travelerIdFromParams, setTravelerId]);
+  }, [travelerIdFromParams]);
 
   // Form state
-  const [productLink, setProductLink] = useState('');
-  const [price, setPrice] = useState('');
+  const [productLink, setProductLink] = useState(url);
+  const [price, setPrice] = useState(priceFromParams);
   const [quantity, setQuantity] = useState('');
-  const [imageUri, setImageUri] = useState<string | null>(null);
+  const [imageUris, setImageUris] = useState<string[]>(images);
+  const [selectedImage, setSelectedImage] = useState<string | null>(images.length > 0 ? images[0] : null);
   const [isGift, setIsGift] = useState(false);
+  const [productName, setProductName] = useState(productNameFromParams);
+
 
   const handleImagePick = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -49,34 +58,62 @@ const ProductLinkPage = () => {
     });
 
     if (!result.canceled && result.assets.length > 0) {
-      setImageUri(result.assets[0].uri);
+      const newUri = result.assets[0].uri;
+      setImageUris(prev => [...prev, newUri]);
+      if (!selectedImage) {
+        setSelectedImage(newUri);
+      }
     }
   };
 
   const handleNext = () => {
-    navigation.navigate('DeliveryDetails' as never);
+    setOrderDetails({
+      item_name: productName,
+      store: name,
+      price: price,
+      quantity: quantity,
+      image_url: selectedImage,
+      with_box: !isGift,
+      details: '', // You can add a details field if needed
+    });
+    router.push('/DeliveryDetails');
   };
+
+  const openInStore = () => {
+    router.push({ pathname: "/storePage", params: { url: productLink, name } });
+  }
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.label}>Paste Product Link</Text>
+       <Text style={styles.label}>Product Name</Text>
       <TextInput
         style={styles.input}
-        value={productLink}
-        onChangeText={setProductLink}
-        placeholder="https://example.com/product"
+        value={productName}
+        onChangeText={setProductName}
+        placeholder="Enter product name"
         placeholderTextColor="#999"
       />
+      <Text style={styles.label}>Product URL</Text>
+      <TouchableOpacity onPress={openInStore}>
+        <TextInput
+          style={[styles.input, styles.disabledInput]}
+          value={productLink}
+          editable={false}
+        />
+      </TouchableOpacity>
 
-      <Text style={styles.label}>Estimated Price</Text>
-      <TextInput
-        style={styles.input}
-        value={price}
-        onChangeText={setPrice}
-        placeholder="Enter price"
-        placeholderTextColor="#999"
-        keyboardType="numeric"
-      />
+      <Text style={styles.label}>Price on {name}</Text>
+      <View style={styles.priceInputContainer}>
+        <Text style={styles.currencySymbol}>ZAR</Text>
+        <TextInput
+          style={styles.priceInput}
+          value={price}
+          onChangeText={setPrice}
+          placeholder="Enter price"
+          placeholderTextColor="#999"
+          keyboardType="numeric"
+        />
+      </View>
 
       <Text style={styles.label}>Quantity</Text>
       <TextInput
@@ -88,13 +125,29 @@ const ProductLinkPage = () => {
         keyboardType="numeric"
       />
 
-      <Text style={styles.label}>Upload Product Image</Text>
-      <TouchableOpacity style={styles.imagePicker} onPress={handleImagePick}>
-        {imageUri ? (
-          <Image source={{ uri: imageUri }} style={styles.image} />
-        ) : (
-          <Text style={styles.imagePickerText}>Choose Image</Text>
+      <Text style={styles.label}>Product Image</Text>
+      {selectedImage && <Image source={{ uri: selectedImage }} style={styles.mainImage} />}
+      
+      <FlatList
+        data={imageUris}
+        horizontal
+        keyExtractor={(item, index) => item + index}
+        renderItem={({ item }) => (
+          <TouchableOpacity onPress={() => setSelectedImage(item)}>
+            <Image 
+              source={{ uri: item }} 
+              style={[
+                styles.thumbnail,
+                selectedImage === item && styles.selectedThumbnail
+              ]} 
+            />
+          </TouchableOpacity>
         )}
+        style={styles.thumbnailList}
+      />
+
+      <TouchableOpacity style={styles.imagePicker} onPress={handleImagePick}>
+        <Text style={styles.imagePickerText}>Add Your Own Image</Text>
       </TouchableOpacity>
 
       <View style={styles.switchContainer}>
@@ -137,6 +190,51 @@ const styles = StyleSheet.create({
     marginTop: 8,
     color: '#000',
   },
+  priceInputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#ccc',
+    borderRadius: 8,
+    marginTop: 8,
+  },
+  currencySymbol: {
+    paddingHorizontal: 10,
+    fontSize: 16,
+    color: '#000',
+  },
+  priceInput: {
+    flex: 1,
+    padding: 12,
+    color: '#000',
+  },
+  disabledInput: {
+    backgroundColor: '#f0f0f0',
+    color: '#007bff',
+    textDecorationLine: 'underline',
+  },
+  mainImage: {
+    width: '100%',
+    height: 200,
+    borderRadius: 8,
+    marginBottom: 10,
+  },
+  thumbnailList: {
+    marginTop: 10,
+    marginBottom: 10,
+    maxHeight: 100,
+  },
+  thumbnail: {
+    width: 80,
+    height: 80,
+    borderRadius: 8,
+    marginRight: 10,
+    borderWidth: 2,
+    borderColor: 'transparent',
+  },
+  selectedThumbnail: {
+    borderColor: '#007bff',
+  },
   imagePicker: {
     marginTop: 10,
     borderWidth: 1,
@@ -148,11 +246,6 @@ const styles = StyleSheet.create({
   },
   imagePickerText: {
     color: '#000',
-  },
-  image: {
-    width: 100,
-    height: 100,
-    borderRadius: 8,
   },
   switchContainer: {
     flexDirection: 'row',

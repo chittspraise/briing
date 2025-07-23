@@ -9,6 +9,7 @@ import {
   StatusBar,
   Alert,
   TextInput,
+  Image,
 } from 'react-native';
 import { AntDesign, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
@@ -45,20 +46,6 @@ export default function SummaryPage() {
       }
     };
     getUser();
-
-    console.log('🟡 Zustand store values on SummaryPage:', {
-      item_name,
-      price,
-      quantity,
-      store,
-      details,
-      with_box,
-      image_url,
-      deliver_from,
-      destination,
-      wait_time,
-      travelerId,
-    });
   }, []);
 
   // Calculate fees and totals
@@ -97,8 +84,6 @@ export default function SummaryPage() {
       status: 'pending',
     };
 
-    console.log('🚚 Submitting order with payload:', payload);
-
     try {
       const { error } = await supabase.from('product_orders').insert(payload);
       if (error) {
@@ -131,10 +116,13 @@ export default function SummaryPage() {
       <ScrollView style={styles.scrollViewContent}>
         {/* Product Card */}
         <View style={styles.productCard}>
-          <View style={styles.productLogoContainer}>
-            <MaterialCommunityIcons name="cube-outline" size={30} color="white" />
-            <Text style={styles.productLogoText}>logo</Text>
-          </View>
+          {image_url ? (
+            <Image source={{ uri: image_url }} style={styles.productImage} />
+          ) : (
+            <View style={styles.productLogoContainer}>
+              <MaterialCommunityIcons name="cube-outline" size={30} color="white" />
+            </View>
+          )}
           <Text style={styles.productTitle}>{item_name || 'N/A'}</Text>
         </View>
 
@@ -200,12 +188,12 @@ export default function SummaryPage() {
         <View style={styles.section}>
           <Text style={styles.label}>Cost breakdown</Text>
           {[
-            { label: 'Product price', value: `R${numericPrice.toFixed(2)}` },
-            { label: 'VAT (estimated)', value: `R${vatEstimate.toFixed(2)}` },
-            { label: 'Platform fee', value: `R${platformFee.toFixed(2)}` },
-            { label: 'Processing fee', value: `R${processingFee.toFixed(2)}` },
-            { label: 'Traveler reward', value: `R${reward.toFixed(2)}` },
-            { label: 'Estimated total', value: `R${estimatedTotal.toFixed(2)}` },
+            { label: 'Product price', value: `ZAR${numericPrice.toFixed(2)}` },
+            { label: 'VAT (estimated)', value: `ZAR${vatEstimate.toFixed(2)}` },
+            { label: 'Platform fee', value: `ZAR${platformFee.toFixed(2)}` },
+            { label: 'Processing fee', value: `ZAR${processingFee.toFixed(2)}` },
+            { label: 'Traveler reward', value: `ZAR${reward.toFixed(2)}` },
+            { label: 'Estimated total', value: `ZAR${estimatedTotal.toFixed(2)}` },
           ].map((item, index) => (
             <View key={index} style={styles.detailRow}>
               <Text style={styles.subLabel}>{item.label}</Text>
@@ -260,7 +248,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginRight: 15,
   },
-  productLogoText: { color: 'white', fontSize: 10, marginTop: 2 },
+  productImage: {
+    width: 60,
+    height: 60,
+    borderRadius: 8,
+    marginRight: 15,
+  },
   productTitle: { fontSize: 20, fontWeight: 'bold', color: 'black' },
   section: {
     backgroundColor: 'white',

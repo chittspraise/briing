@@ -64,11 +64,6 @@ const ProfileScreen = () => {
     const { error } = await supabase.auth.signOut();
     if (error) {
       console.error('Logout error:', error.message);
-    } else {
-      navigation.reset({
-        index: 0,
-        routes: [{ name: 'app/index' }], // ✅ Fixed destination
-      });
     }
   };
 
@@ -95,12 +90,12 @@ const ProfileScreen = () => {
         <Text style={styles.sectionTitle}>Account</Text>
         <Option
           label="Notifications"
-          icon={<Ionicons name="notifications-outline" size={20} color="#000" />}
+          icon={<Ionicons name="notifications-outline" size={20} color="#fff" />}
           onPress={() => navigation.navigate('notifications')}
         />
         <Option
           label="Settings"
-          icon={<Feather name="settings" size={20} color="#000" />}
+          icon={<Feather name="settings" size={20} color="#fff" />}
           onPress={() => navigation.navigate('settings/index')}
         />
       </View>
@@ -110,12 +105,12 @@ const ProfileScreen = () => {
         <Text style={styles.sectionTitle}>Support</Text>
         <Option
           label="Check Help Center"
-          icon={<Feather name="menu" size={20} color="#000" />}
+          icon={<Feather name="menu" size={20} color="#fff" />}
           onPress={() => navigation.navigate('help')}
         />
         <Option
           label="Submit a request"
-          icon={<Feather name="edit" size={20} color="#000" />}
+          icon={<Feather name="edit" size={20} color="#fff" />}
           onPress={() => navigation.navigate('help')}
         />
       </View>
@@ -125,12 +120,12 @@ const ProfileScreen = () => {
         <Text style={styles.sectionTitle}>Refer</Text>
         <Option
           label="Invite Friends"
-          icon={<Feather name="gift" size={20} color="#000" />}
+          icon={<Feather name="gift" size={20} color="#fff" />}
           onPress={() => navigation.navigate('invite')}
         />
         <Option
           label="Coupons"
-          icon={<Feather name="percent" size={20} color="#000" />}
+          icon={<Feather name="percent" size={20} color="#fff" />}
         />
       </View>
 
@@ -138,7 +133,7 @@ const ProfileScreen = () => {
       <View style={styles.section}>
         <Option
           label="Log Out"
-          icon={<MaterialIcons name="logout" size={20} color="#000" />}
+          icon={<MaterialIcons name="logout" size={20} color="#fff" />}
           onPress={handleLogout}
         />
       </View>
@@ -164,7 +159,7 @@ const Option = ({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: '#000',
     paddingTop: 50,
   },
   profileBanner: {
@@ -173,39 +168,38 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingBottom: 20,
     borderBottomWidth: 1,
-    borderColor: '#eee',
+    borderColor: '#333',
     marginBottom: 20,
   },
   avatar: {
     width: 70,
     height: 70,
     borderRadius: 35,
-    backgroundColor: '#000',
+    backgroundColor: '#fff',
     marginRight: 16,
   },
   name: {
     fontSize: 22,
     fontWeight: '700',
-    color: '#000',
+    color: '#fff',
   },
   editProfile: {
     fontSize: 14,
     marginTop: 4,
-    color: '#000',
+    color: '#fff',
   },
   section: {
     marginHorizontal: 16,
     marginBottom: 24,
-    backgroundColor: '#f7f7f7',
+    backgroundColor: '#1a1a1a',
     borderRadius: 12,
     paddingVertical: 10,
     paddingHorizontal: 12,
-    elevation: 1,
   },
   sectionTitle: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#444',
+    color: '#ccc',
     marginBottom: 10,
     textTransform: 'uppercase',
   },
@@ -214,12 +208,12 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingVertical: 12,
-    borderBottomColor: '#ddd',
+    borderBottomColor: '#333',
     borderBottomWidth: 0.5,
   },
   optionText: {
     fontSize: 16,
-    color: '#000',
+    color: '#fff',
   },
 });
 

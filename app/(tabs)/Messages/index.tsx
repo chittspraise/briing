@@ -168,21 +168,21 @@ const MessagesPage = () => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff', paddingTop: 50 },
-  header: { fontSize: 24, fontWeight: '700', marginLeft: 16, marginBottom: 16 },
+  container: { flex: 1, backgroundColor: '#000', paddingTop: 50 },
+  header: { fontSize: 24, fontWeight: '700', marginLeft: 16, marginBottom: 16, color: '#fff' },
   list: { paddingHorizontal: 16 },
   messageCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f2f2f2',
+    backgroundColor: '#1a1a1a',
     borderRadius: 12,
     padding: 12,
     marginBottom: 12,
     justifyContent: 'space-between',
   },
   textContent: { flex: 1, marginRight: 10 },
-  name: { fontSize: 16, fontWeight: '600' },
-  messagePreview: { fontSize: 14, color: '#555', marginTop: 2 },
+  name: { fontSize: 16, fontWeight: '600', color: '#fff' },
+  messagePreview: { fontSize: 14, color: '#ccc', marginTop: 2 },
   time: { fontSize: 12, color: '#888', minWidth: 60, textAlign: 'right' },
 });
 

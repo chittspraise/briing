@@ -137,6 +137,12 @@ const AuthScreen: React.FC = () => {
           {isLogin ? "Don't have an account? Sign Up" : 'Already have an account? Login'}
         </Text>
       </TouchableOpacity>
+
+      {isLogin && (
+        <TouchableOpacity onPress={() => router.push('/forgot-password')}>
+          <Text style={styles.toggleText}>Forgot Password?</Text>
+        </TouchableOpacity>
+      )}
     </KeyboardAvoidingView>
   );
 };
