@@ -68,22 +68,40 @@ const confirmedOffers = [
 
 const popularStores = [
   {
-    id: '3',
     name: 'Amazon',
-    logo: 'https://1000logos.net/wp-content/uploads/2016/10/Amazon-logo-meaning.jpg',
-    purchases: 4200,
-  },
-  {
+    link: 'https://www.amazon.com',
+    logo: 'https://www.google.com/s2/favicons?sz=64&domain=www.amazon.com',
     id: '1',
-    name: 'Apple Store',
-    logo: 'https://upload.wikimedia.org/wikipedia/commons/f/fa/Apple_logo_black.svg',
-    purchases: 3520,
   },
   {
+    name: 'Best Buy',
+    link: 'https://www.bestbuy.com',
+    logo: 'https://www.google.com/s2/favicons?sz=64&domain=www.bestbuy.com',
     id: '2',
-    name: 'Alibaba',
-    logo: 'https://seeklogo.com/images/A/alibaba-logo-3B30F5D998-seeklogo.com.png',
-    purchases: 2780,
+  },
+  {
+    name: 'Apple',
+    link: 'https://www.apple.com',
+    logo: 'https://www.google.com/s2/favicons?sz=64&domain=www.apple.com',
+    id: '3',
+  },
+  {
+    name: 'Takealot',
+    link: 'https://www.takealot.com',
+    logo: 'https://www.google.com/s2/favicons?sz=64&domain=www.takealot.com',
+    id: '4',
+  },
+  {
+    name: 'Makro',
+    link: 'https://www.makro.co.za',
+    logo: 'https://www.google.com/s2/favicons?sz=64&domain=www.makro.co.za',
+    id: '5',
+  },
+  {
+    name: 'Superbalist',
+    link: 'https://superbalist.com',
+    logo: 'https://www.google.com/s2/favicons?sz=64&domain=superbalist.com',
+    id: '6',
   },
 ];
 
@@ -93,13 +111,184 @@ const ExplorePage = () => {
   const [activeStore, setActiveStore] = useState(0);
   const [travelers, setTravelers] = useState<any[]>([]);
   const [loadingTravelers, setLoadingTravelers] = useState(true);
+  const [confirmedOffers, setConfirmedOffers] = useState<any[]>([]);
+  const [loadingConfirmedOffers, setLoadingConfirmedOffers] = useState(true);
+  const [highestPayingDestinations, setHighestPayingDestinations] = useState<any[]>([]);
+  const [loadingHighestPaying, setLoadingHighestPaying] = useState(true);
+  const [mostPurchasedStores, setMostPurchasedStores] = useState<any[]>([]);
+  const [loadingMostPurchased, setLoadingMostPurchased] = useState(true);
 
   const router = useRouter();
   const setTravelerId = useTravelerOrderStore((state) => state.setTravelerId);
 
   useEffect(() => {
     fetchTravelers();
+    fetchConfirmedOffers();
+    fetchHighestPayingDestinations();
+    fetchMostPurchasedStores();
   }, []);
+
+  const fetchMostPurchasedStores = async () => {
+    setLoadingMostPurchased(true);
+    try {
+      const { data, error } = await supabase
+        .from('product_orders')
+        .select('store');
+
+      if (error) {
+        console.error('Error fetching product orders for stores:', error);
+        Toast.show({ type: 'error', text1: 'Error', text2: 'Failed to fetch stores.' });
+        return;
+      }
+
+      if (data) {
+        const storeCounts = data.reduce((acc, order) => {
+          const store = order.store;
+          if (store) {
+            acc[store] = (acc[store] || 0) + 1;
+          }
+          return acc;
+        }, {} as { [key: string]: number });
+
+        const sortedStores = Object.entries(storeCounts)
+          .sort(([, a], [, b]) => b - a)
+          .slice(0, 6);
+
+        const formattedStores = sortedStores.map(([name, count], index) => ({
+          id: `${name}-${index}`,
+          name,
+          purchases: count,
+          link: `https://www.${name.toLowerCase().replace(/\s+/g, '')}.com`,
+          logo: `https://www.google.com/s2/favicons?sz=64&domain=www.${name.toLowerCase().replace(/\s+/g, '')}.com`,
+        }));
+
+        setMostPurchasedStores(formattedStores);
+      }
+    } catch (e) {
+      console.error('Unexpected error:', e);
+      Toast.show({ type: 'error', text1: 'Error', text2: 'Unexpected error while fetching stores.' });
+    } finally {
+      setLoadingMostPurchased(false);
+    }
+  };
+
+  const fetchHighestPayingDestinations = async () => {
+    setLoadingHighestPaying(true);
+    try {
+      const { data, error } = await supabase
+        .from('product_orders')
+        .select('destination, traveler_reward');
+
+      if (error) {
+        console.error('Error fetching product orders:', error);
+        Toast.show({ type: 'error', text1: 'Error', text2: 'Failed to fetch destinations.' });
+        return;
+      }
+
+      if (data) {
+        const destinationsByReward = data.reduce((acc, order) => {
+          const destination = order.destination;
+          if (destination) {
+            if (!acc[destination]) {
+              acc[destination] = {
+                name: destination,
+                reward: 0,
+                orders: 0,
+              };
+            }
+            acc[destination].reward += order.traveler_reward || 0;
+            acc[destination].orders += 1;
+          }
+          return acc;
+        }, {} as { [key: string]: { name: string; reward: number; orders: number } });
+
+        const sortedDestinations = Object.values(destinationsByReward)
+          .sort((a, b) => b.reward - a.reward)
+          .slice(0, 6);
+
+        const cityImages: { [key: string]: string } = {
+          'New York': 'https://images.unsplash.com/photo-1496442226666-8d4d0e62e6e9?auto=format&fit=crop&w=800&q=80',
+          'Paris': 'https://images.unsplash.com/photo-1522093007474-d86e9bf7ba6f?auto=format&fit=crop&w=800&q=80',
+          'Tokyo': 'https://images.unsplash.com/photo-1503899036084-c55cdd92da26?auto=format&fit=crop&w=800&q=80',
+          'Berlin': 'https://images.unsplash.com/photo-1526481280643-335456a208ae?auto=format&fit=crop&w=800&q=80',
+          'Sydney': 'https://images.unsplash.com/photo-1506973035872-a4ec16b8e8d6?auto=format&fit=crop&w=800&q=80',
+          'Midrand': 'https://images.unsplash.com/photo-1600185365926-3a2ce3cdb9eb?auto=format&fit=crop&w=800&q=80',
+        };
+        const defaultImageUrl = 'https://images.unsplash.com/photo-1503220317375-aaad61436b1b?auto=format&fit=crop&w=800&q=80';
+
+        const formattedDestinations = sortedDestinations.map((dest, index) => ({
+          id: `${dest.name}-${index}`,
+          name: dest.name,
+          reward: dest.reward.toFixed(2),
+          orders: dest.orders,
+          offers: Math.round(dest.orders * 0.65), // Placeholder for offers
+          imageUrl: cityImages[dest.name] || defaultImageUrl,
+        }));
+
+        setHighestPayingDestinations(formattedDestinations);
+      }
+    } catch (e) {
+      console.error('Unexpected error:', e);
+      Toast.show({ type: 'error', text1: 'Error', text2: 'Unexpected error while fetching destinations.' });
+    } finally {
+      setLoadingHighestPaying(false);
+    }
+  };
+
+  const fetchConfirmedOffers = async () => {
+    setLoadingConfirmedOffers(true);
+    try {
+      const { data, error } = await supabase
+        .from('confirmed_orders')
+        .select('destination, reward');
+
+      if (error) {
+        console.error('Error fetching confirmed offers:', error);
+        Toast.show({ type: 'error', text1: 'Error', text2: 'Failed to fetch confirmed offers.' });
+        return;
+      }
+
+      if (data) {
+        const validOffers = data.filter(offer => offer.destination);
+
+        const offersByDestination = validOffers.reduce((acc, offer) => {
+          const destination = offer.destination!;
+          if (!acc[destination]) {
+            acc[destination] = {
+              name: destination,
+              reward: 0,
+            };
+          }
+          acc[destination].reward += offer.reward || 0;
+          return acc;
+        }, {} as { [key: string]: { name: string; reward: number } });
+
+        const cityImages: { [key: string]: string } = {
+          'New York': 'https://images.unsplash.com/photo-1496442226666-8d4d0e62e6e9?auto=format&fit=crop&w=800&q=80',
+          'Paris': 'https://images.unsplash.com/photo-1522093007474-d86e9bf7ba6f?auto=format&fit=crop&w=800&q=80',
+          'Tokyo': 'https://images.unsplash.com/photo-1503899036084-c55cdd92da26?auto=format&fit=crop&w=800&q=80',
+          'Berlin': 'https://images.unsplash.com/photo-1526481280643-335456a208ae?auto=format&fit=crop&w=800&q=80',
+          'Sydney': 'https://images.unsplash.com/photo-1506973035872-a4ec16b8e8d6?auto=format&fit=crop&w=800&q=80',
+          'Midrand': 'https://images.unsplash.com/photo-1600185365926-3a2ce3cdb9eb?auto=format&fit=crop&w=800&q=80',
+        };
+        const defaultImageUrl = 'https://images.unsplash.com/photo-1503220317375-aaad61436b1b?auto=format&fit=crop&w=800&q=80';
+
+        const formattedOffers = Object.values(offersByDestination).map((offer, index) => ({
+          id: `${offer.name}-${index}`,
+          name: offer.name,
+          reward: offer.reward.toFixed(2),
+          imageUrl: cityImages[offer.name] || defaultImageUrl,
+        }));
+
+        setConfirmedOffers(formattedOffers);
+      }
+    } catch (e) {
+      console.error('Unexpected error:', e);
+      Toast.show({ type: 'error', text1: 'Error', text2: 'Unexpected error while fetching offers.' });
+    } finally {
+      setLoadingConfirmedOffers(false);
+    }
+  };
 
   const fetchTravelers = async () => {
     setLoadingTravelers(true);
@@ -113,23 +302,42 @@ const ExplorePage = () => {
       if (error) {
         console.error('Error fetching travelers:', error);
         Toast.show({ type: 'error', text1: 'Error', text2: 'Failed to fetch travelers.' });
-      } else if (data) {
-        const uuidRegex = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
-        const validTravelers = data.filter(item => item.user_id && typeof item.user_id === 'string' && uuidRegex.test(item.user_id));
-
-        const mappedTravelers = validTravelers.map(item => ({
-          id: item.user_id!,
-          name: item.traveler_name ?? 'Unknown',
-          from: item.from_country ?? 'Unknown',
-          to: item.to_country ?? 'Unknown',
-          budget: item.notes?.match(/\d+/)?.[0] ?? 'N/A',
-          departure_date: item.departure_date ?? 'N/A',
-          return_date: item.return_date ?? '',
-          is_round_trip: !!item.return_date,
-          avatar: 'https://randomuser.me/api/portraits/lego/1.jpg',
-        }));
-        setTravelers(mappedTravelers);
+        return;
       }
+      
+      if (!data) {
+        setTravelers([]);
+        setLoadingTravelers(false);
+        return;
+      }
+
+      const userIds = data.map(item => item.user_id).filter(id => id);
+      
+      const { data: profiles, error: profilesError } = await supabase
+        .from('profiles')
+        .select('id, image_url')
+        .in('id', userIds);
+
+      if (profilesError) {
+        console.error('Error fetching profiles:', profilesError);
+      }
+
+      const profilesMap = new Map(profiles?.map(p => [p.id, p.image_url]));
+
+      const mappedTravelers = data.map(item => ({
+        id: item.id, // Use the unique travel record ID for the key
+        user_id: item.user_id!,
+        name: item.traveler_name ?? 'Unknown',
+        from: item.from_country ?? 'Unknown',
+        to: item.to_country ?? 'Unknown',
+        budget: item.notes?.match(/\d+/)?.[0] ?? 'N/A',
+        departure_date: item.departure_date ?? 'N/A',
+        return_date: item.return_date ?? '',
+        is_round_trip: !!item.return_date,
+        avatar: profilesMap.get(item.user_id) || 'https://randomuser.me/api/portraits/men/1.jpg',
+      }));
+      setTravelers(mappedTravelers);
+
     } catch (e) {
       console.error('Unexpected error:', e);
       Toast.show({ type: 'error', text1: 'Error', text2: 'Unexpected error while fetching travelers.' });
@@ -150,6 +358,10 @@ const ExplorePage = () => {
     router.push({ pathname: '/customProduct', params: { travelerId } });
   };
 
+  const openStore = (url: string, name: string) => {
+    router.push({ pathname: "/storePage", params: { url, name } });
+  };
+
   const renderCard = (item: any) => (
     <View style={styles.card}>
       <Image source={{ uri: item.imageUrl }} style={styles.image} resizeMode="cover" />
@@ -160,7 +372,7 @@ const ExplorePage = () => {
             {item.orders} orders • {item.offers} offers
           </Text>
         )}
-        <Text style={styles.rewardLabel}>Reward:</Text>
+        <Text style={styles.rewardLabel}>Total Reward:</Text>
         <Text style={styles.rewardValue}>R{item.reward}</Text>
       </View>
     </View>
@@ -190,7 +402,7 @@ const ExplorePage = () => {
 
         <TouchableOpacity
           style={styles.requestButton}
-          onPress={() => handleRequestDelivery(item.id)}
+          onPress={() => handleRequestDelivery(item.user_id)}
         >
           <Text style={styles.requestButtonText}>Request Delivery</Text>
         </TouchableOpacity>
@@ -202,7 +414,7 @@ const ExplorePage = () => {
     <View style={styles.paginationContainer}>
       {Array.from({ length: count }).map((_, index) => (
         <View
-          key={index}
+          key={`pagination-dot-${index}`}
           style={[
             styles.dot,
             index === activeIndex ? styles.activeDot : styles.inactiveDot,
@@ -224,55 +436,78 @@ const ExplorePage = () => {
           data={travelers}
           horizontal
           showsHorizontalScrollIndicator={false}
-          keyExtractor={(item) => item.id}
+          keyExtractor={(item, index) => (item.id || index).toString()}
           renderItem={renderTraveler}
           contentContainerStyle={{ paddingHorizontal: 10 }}
         />
       )}
 
       <Text style={styles.sectionTitle}>Highest Paying Travel Destinations</Text>
-      <FlatList
-        horizontal
-        pagingEnabled
-        showsHorizontalScrollIndicator={false}
-        data={destinations}
-        renderItem={({ item }) => renderCard(item)}
-        keyExtractor={(item) => item.id}
-        onScroll={handleScroll(setActiveDestination)}
-      />
-      <PaginationDots count={destinations.length} activeIndex={activeDestination} />
+      {loadingHighestPaying ? (
+        <ActivityIndicator size="large" color="#fff" style={{ marginVertical: 20 }} />
+      ) : highestPayingDestinations.length === 0 ? (
+        <Text style={{ color: '#fff', marginLeft: 16 }}>No destinations found.</Text>
+      ) : (
+        <>
+          <FlatList
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            data={highestPayingDestinations}
+            renderItem={({ item }) => renderCard(item)}
+            keyExtractor={(item) => item.id}
+            onScroll={handleScroll(setActiveDestination)}
+          />
+          <PaginationDots count={highestPayingDestinations.length} activeIndex={activeDestination} />
+        </>
+      )}
 
       <Text style={styles.sectionTitle}>Confirmed Offers From Around the World</Text>
-      <FlatList
-        horizontal
-        pagingEnabled
-        showsHorizontalScrollIndicator={false}
-        data={confirmedOffers}
-        renderItem={({ item }) => renderCard(item)}
-        keyExtractor={(item) => item.id}
-        onScroll={handleScroll(setActiveOffer)}
-      />
-      <PaginationDots count={confirmedOffers.length} activeIndex={activeOffer} />
+      {loadingConfirmedOffers ? (
+        <ActivityIndicator size="large" color="#fff" style={{ marginVertical: 20 }} />
+      ) : confirmedOffers.length === 0 ? (
+        <Text style={{ color: '#fff', marginLeft: 16 }}>No confirmed offers found.</Text>
+      ) : (
+        <>
+          <FlatList
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            data={confirmedOffers}
+            renderItem={({ item }) => renderCard(item)}
+            keyExtractor={(item) => item.id}
+            onScroll={handleScroll(setActiveOffer)}
+          />
+          <PaginationDots count={confirmedOffers.length} activeIndex={activeOffer} />
+        </>
+      )}
 
       <Text style={styles.sectionTitle}>Most Purchased From Store</Text>
-      <FlatList
-        horizontal
-        pagingEnabled
-        showsHorizontalScrollIndicator={false}
-        data={popularStores}
-        renderItem={({ item }) => (
-          <View style={styles.card}>
-            <Image source={{ uri: item.logo }} style={styles.storeLogo} resizeMode="contain" />
-            <View style={styles.cardContent}>
-              <Text style={styles.destName}>{item.name}</Text>
-              <Text style={styles.subText}>{item.purchases} total purchases</Text>
-            </View>
-          </View>
-        )}
-        keyExtractor={(item) => item.id}
-        onScroll={handleScroll(setActiveStore)}
-      />
-      <PaginationDots count={popularStores.length} activeIndex={activeStore} />
+      {loadingMostPurchased ? (
+        <ActivityIndicator size="large" color="#fff" style={{ marginVertical: 20 }} />
+      ) : mostPurchasedStores.length === 0 ? (
+        <Text style={{ color: '#fff', marginLeft: 16 }}>No stores found.</Text>
+      ) : (
+        <>
+          <FlatList
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            data={mostPurchasedStores}
+            renderItem={({ item }) => (
+              <TouchableOpacity style={styles.card} onPress={() => openStore(item.link, item.name)}>
+                <Image source={{ uri: item.logo }} style={styles.storeLogo} resizeMode="contain" />
+                <View style={styles.cardContent}>
+                  <Text style={styles.destName}>{item.name}</Text>
+                </View>
+              </TouchableOpacity>
+            )}
+            keyExtractor={(item) => item.id}
+            onScroll={handleScroll(setActiveStore)}
+          />
+          <PaginationDots count={mostPurchasedStores.length} activeIndex={activeStore} />
+        </>
+      )}
     </ScrollView>
   );
 };

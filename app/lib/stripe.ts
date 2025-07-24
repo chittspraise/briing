@@ -7,9 +7,10 @@ import {
 } from '@stripe/stripe-react-native';
 import { CollectionMode } from '@stripe/stripe-react-native/lib/typescript/src/types/PaymentSheet';
 const fetchStripekeys = async (totalAmount: number) => {
+  const amountInCents = Math.round(totalAmount * 100); // Convert to cents and round
   const { data, error } = await supabase.functions.invoke('stripe-checkout', {
     body: {
-      totalAmount,
+      totalAmount: amountInCents,
     },
   });
 

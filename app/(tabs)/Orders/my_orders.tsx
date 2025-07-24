@@ -134,7 +134,7 @@ const MyOrdersPage = () => {
   };
 
   const handleCheckout = async (order: Order) => {
-    const total = order.price + order.vat_estimate + order.traveler_reward;
+    const total = parseFloat((order.price + order.vat_estimate + order.traveler_reward).toFixed(2));
     try {
       await setupStripePaymentSheet(total);
       await openStripeCheckout();
@@ -156,7 +156,7 @@ const MyOrdersPage = () => {
               flex: 1,
               height: 6,
               marginHorizontal: 2,
-              backgroundColor: status === 'cancelled' ? 'red' : i <= index ? 'green' : '#555',
+              backgroundColor: status === 'cancel' ? 'red' : i <= index ? 'green' : '#555',
             }}
           />
         ))}
@@ -170,25 +170,27 @@ const MyOrdersPage = () => {
     const travelerConfirmed = item.traveler_id === currentUserId;
     let statusOptions: string[] = [];
 
-    if (item.status === 'pending' && isCreator) statusOptions = ['cancelled'];
+    if (item.status === 'pending' && isCreator) statusOptions = ['cancel'];
     else if (item.status === 'pending' && !isCreator) statusOptions = ['accepted'];
-    else if (travelerConfirmed) statusOptions = ['purchased', 'intransit', 'delivered', 'cancelled'];
-    else if (shopperConfirmed || (isCreator && item.status === 'accepted')) statusOptions = ['received', 'cancelled'];
+    else if (travelerConfirmed) statusOptions = ['purchased', 'intransit', 'delivered', 'cancel'];
+    else if (shopperConfirmed || (isCreator && item.status === 'accepted')) statusOptions = ['received', 'cancel'];
+
+    const currentIndex = STATUS_CHAIN.indexOf(item.status);
+    const nextStatus = currentIndex !== -1 && currentIndex < STATUS_CHAIN.length - 2 ? STATUS_CHAIN[currentIndex + 1] : null;
 
     return (
       <View style={styles.card}>
         <View style={styles.statusRow}>
           <Text style={styles.statusLabel}>Status: {item.status}</Text>
-          {isCreator && item.status === 'accepted' && (
+          {isCreator && item.status === 'accepted' ? (
             <TouchableOpacity style={styles.checkoutButton} onPress={() => handleCheckout(item)}>
               <Text style={styles.checkoutText}>Checkout</Text>
             </TouchableOpacity>
-          )}
-          {isCreator && item.status === 'pending' && (
+          ) : nextStatus ? (
             <View style={[styles.checkoutButton, styles.disabledButton]}>
-              <Text style={styles.checkoutText}>Checkout</Text>
+              <Text style={styles.checkoutText}>{nextStatus}</Text>
             </View>
-          )}
+          ) : null}
         </View>
         {renderStatusBar(item.status)}
 
@@ -261,7 +263,10 @@ const MyOrdersPage = () => {
             renderItem={({ item: uri }) => <Image source={{ uri }} style={styles.productImage} />}
           />
         )}
-        <Text style={styles.price}>R{item.traveler_reward}</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8 }}>
+          <Text style={styles.rewardLabel}>Reward: </Text>
+          <Text style={styles.price}>R{item.traveler_reward}</Text>
+        </View>
         <Text style={styles.productDetail}>Price: R{item.price} + Tax: R{item.vat_estimate}</Text>
         <Text style={styles.label}>Store:</Text>
         <Text style={styles.value}>{item.store}</Text>
@@ -365,10 +370,14 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   price: {
+    color: 'green',
+    fontWeight: 'bold',
+    fontSize: 18,
+  },
+  rewardLabel: {
     color: '#fff',
     fontWeight: 'bold',
     fontSize: 18,
-    marginTop: 8,
   },
   productDetail: {
     color: '#ccc',

@@ -50,9 +50,9 @@ export default function SummaryPage() {
 
   // Calculate fees and totals
   const numericPrice = parseFloat(price || '0') || 0;
-  const platformFee = numericPrice * 0.15;
-  const processingFee = numericPrice * 0.15;
-  const vatEstimate = numericPrice * 0.15;
+  const platformFee = Math.round(numericPrice * 0.15 * 100) / 100;
+  const processingFee = Math.round(numericPrice * 0.15 * 100) / 100;
+  const vatEstimate = Math.round(numericPrice * 0.15 * 100) / 100;
   const reward = parseFloat(travelerReward || '0') || 0;
   const estimatedTotal = numericPrice + platformFee + processingFee + vatEstimate + reward;
 
@@ -179,13 +179,16 @@ export default function SummaryPage() {
         {/* Reward */}
         <View style={styles.section}>
           <Text style={styles.label}>Traveler reward (you decide)</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="e.g. 100"
-            keyboardType="numeric"
-            value={travelerReward}
-            onChangeText={setTravelerReward}
-          />
+          <View style={styles.rewardInputContainer}>
+            <Text style={styles.zarText}>ZAR</Text>
+            <TextInput
+              style={styles.rewardInput}
+              placeholder="e.g. 100"
+              keyboardType="numeric"
+              value={travelerReward}
+              onChangeText={setTravelerReward}
+            />
+          </View>
         </View>
 
         {/* Cost Breakdown */}
@@ -258,7 +261,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     marginRight: 15,
   },
-  productTitle: { fontSize: 20, fontWeight: 'bold', color: 'black' },
+  productTitle: { fontSize: 20, fontWeight: 'bold', color: 'black', flex: 1 },
   section: {
     backgroundColor: 'white',
     borderRadius: 8,
@@ -282,6 +285,26 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     padding: 10,
     color: '#000',
+  },
+  rewardInputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#000',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+  },
+  zarText: {
+    fontWeight: 'bold',
+    marginRight: 5,
+    color: 'black',
+    fontSize: 14,
+  },
+  rewardInput: {
+    flex: 1,
+    paddingVertical: 10,
+    color: '#000',
+    fontSize: 14,
   },
   footer: {
     paddingHorizontal: 20,

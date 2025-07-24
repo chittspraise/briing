@@ -1,24 +1,26 @@
 import { Tabs } from 'expo-router';
 import React from 'react';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { HapticTab } from '@/components/HapticTab';
-// If you don't want any background component, this can be removed
-// import TabBarBackground from '@/components/ui/TabBarBackground'; 
 
 export default function TabLayout() {
+  const insets = useSafeAreaInsets();
+
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
         tabBarButton: HapticTab,
         tabBarStyle: {
-          backgroundColor: '#000', // solid black background
+          backgroundColor: '#000',
           borderTopWidth: 0,
-          height: 60,
+          height: 60 + insets.bottom, // Adjust height based on safe area
+          paddingBottom: insets.bottom, // Add padding to the bottom
         },
-        tabBarActiveTintColor: '#fff',   // white for active
-        tabBarInactiveTintColor: '#aaa', // grey for inactive
+        tabBarActiveTintColor: '#fff',
+        tabBarInactiveTintColor: '#aaa',
         tabBarLabelStyle: {
           fontSize: 12,
           fontWeight: '600',

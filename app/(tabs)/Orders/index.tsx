@@ -285,7 +285,10 @@ const OrderPage = () => {
                 />
               )}
 
-              <Text style={styles.price}>ZAR{item.traveler_reward}</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
+                <Text style={styles.rewardLabel}>Reward: </Text>
+                <Text style={styles.price}>ZAR{item.traveler_reward}</Text>
+              </View>
               <Text style={styles.product}>
                 Price: ZAR{item.price} + Tax: ZAR{item.vat_estimate}
               </Text>
@@ -455,8 +458,12 @@ const styles = StyleSheet.create({
   price: {
     fontSize: 28,
     fontWeight: 'bold',
+    color: 'green',
+  },
+  rewardLabel: {
+    fontSize: 28,
+    fontWeight: 'bold',
     color: '#fff',
-    marginBottom: 4,
   },
   product: {
     fontSize: 13,

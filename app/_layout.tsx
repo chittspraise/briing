@@ -12,8 +12,42 @@ import { View, Text, ActivityIndicator } from 'react-native';
 import { StripeProvider } from '@stripe/stripe-react-native';
 import * as WebBrowser from 'expo-web-browser';
 import * as Linking from 'expo-linking';
-import Toast from 'react-native-toast-message';
+import Toast, { BaseToast, ErrorToast } from 'react-native-toast-message';
 
+const toastConfig = {
+  success: (props) => (
+    <BaseToast
+      {...props}
+      style={{ borderLeftColor: 'green', backgroundColor: '#121212' }}
+      contentContainerStyle={{ paddingHorizontal: 15 }}
+      text1Style={{
+        fontSize: 17,
+        fontWeight: '700',
+        color: '#fff',
+      }}
+      text2Style={{
+        fontSize: 15,
+        color: '#ccc',
+      }}
+    />
+  ),
+  error: (props) => (
+    <ErrorToast
+      {...props}
+      style={{ borderLeftColor: 'red', backgroundColor: '#121212' }}
+      contentContainerStyle={{ paddingHorizontal: 15 }}
+      text1Style={{
+        fontSize: 17,
+        fontWeight: '700',
+        color: '#fff',
+      }}
+      text2Style={{
+        fontSize: 15,
+        color: '#ccc',
+      }}
+    />
+  ),
+};
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -40,23 +74,25 @@ export default function RootLayout() {
   const [userSession, setUserSession] = useState<import('@supabase/supabase-js').User | null>(null);
 
   useEffect(() => {
-    const restoreSession = async () => {
-      const { data } = await supabase.auth.getSession();
-      setUserSession(data.session?.user ?? null);
-      setSessionLoading(false);
-    };
-
-    restoreSession();
-
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUserSession(session?.user ?? null);
+      setUserSession(session);
+      setSessionLoading(false);
     });
-
 
     return () => {
       listener?.subscription.unsubscribe();
     };
   }, []);
+
+  useEffect(() => {
+    if (sessionLoading) return;
+
+    if (userSession) {
+      router.replace('/(tabs)/Home');
+    } else {
+      router.replace('/');
+    }
+  }, [userSession, sessionLoading]);
 
   if (!loaded || sessionLoading) {
     return (
@@ -76,28 +112,20 @@ export default function RootLayout() {
         <TravelProvider>
           <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
             <Stack screenOptions={{ headerShown: false }}>
-              {!userSession ? (
-                <>
-                  <Stack.Screen name="index" />
-                  <Stack.Screen name="forgot-password" />
-                  <Stack.Screen name="reset-password" />
-                  <Stack.Screen name="must-be-signed-in" />
-                </>
-              ) : (
-                <>
-                  <Stack.Screen name="index" />
-                  <Stack.Screen name="(tabs)" />
-                  <Stack.Screen name="+not-found" />
-                  <Stack.Screen name="travelPage" />
-                  <Stack.Screen name="OrdersPage" />
-                </>
-              )}
+              <Stack.Screen name="index" />
+              <Stack.Screen name="forgot-password" />
+              <Stack.Screen name="reset-password" />
+              <Stack.Screen name="must-be-signed-in" />
+              <Stack.Screen name="(tabs)" />
+              <Stack.Screen name="+not-found" />
+              <Stack.Screen name="travelPage" />
+              <Stack.Screen name="OrdersPage" />
             </Stack>
             <StatusBar style="auto" />
           </ThemeProvider>
         </TravelProvider>
       </OrderProvider>
-      <Toast />
+      <Toast config={toastConfig} />
     </StripeProvider>
   );
 }

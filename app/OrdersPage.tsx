@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import {
+  ActivityIndicator,
   Image,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
+  Switch,
   Text,
   TextInput,
   TouchableOpacity,
@@ -11,7 +12,7 @@ import {
 } from 'react-native';
 import Toast from 'react-native-toast-message';
 import * as ImagePicker from 'expo-image-picker';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRouter } from 'expo-router';
 import { useTravelerOrderStore } from './store/travelerOrderStore';
 import { supabase } from '@/supabaseClient';
 
@@ -22,6 +23,7 @@ type RootStackParamList = {
 
 const ProductLinkPage = () => {
   const navigation = useNavigation<import('@react-navigation/native').NavigationProp<RootStackParamList>>();
+  const router = useRouter();
   const { setOrderDetails } = useTravelerOrderStore();
 
   const [productName, setName] = useState('');
@@ -33,26 +35,40 @@ const ProductLinkPage = () => {
   const [images, setImages] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [shopperName, setShopperName] = useState<string | null>(null);
+  const [shopperLoading, setShopperLoading] = useState(true);
+  const [linkUrl, setLinkUrl] = useState('');
 
-  // Fetch shopper name
   useEffect(() => {
     const fetchUserName = async () => {
+      setShopperLoading(true);
       const { data: userData, error: authError } = await supabase.auth.getUser();
-      if (authError || !userData.user) return;
+      if (authError || !userData.user) {
+        setShopperLoading(false);
+        return;
+      }
 
       const { data: profile, error: profileError } = await supabase
         .from('profiles')
-        .select('full_name')
+        .select('first_name, last_name')
         .eq('id', userData.user.id)
         .single();
 
-      if (!profileError && profile?.full_name) {
-        setShopperName(profile.full_name);
+      if (!profileError && profile) {
+        setShopperName(`${profile.first_name || ''} ${profile.last_name || ''}`.trim());
       }
+      setShopperLoading(false);
     };
 
     fetchUserName();
   }, []);
+
+  const handleProceedWithLink = () => {
+    if (!linkUrl.trim()) {
+      Toast.show({ type: 'error', text1: 'Invalid URL', text2: 'Please paste a valid link.' });
+      return;
+    }
+    router.push({ pathname: "/storePage", params: { url: linkUrl, name: 'External Link' } });
+  };
 
   const pickImage = async () => {
     if (images.length >= 2) {
@@ -107,11 +123,26 @@ const ProductLinkPage = () => {
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      {shopperName ? (
-        <Text style={styles.shopperText}>Shopper: {shopperName}</Text>
-      ) : (
+      <View style={styles.linkSection}>
+        <Text style={styles.linkTitle}>Can't find a store?</Text>
+        <Text style={styles.linkSubtitle}>Please paste the product link or store link here</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="https://..."
+          placeholderTextColor="#888"
+          value={linkUrl}
+          onChangeText={setLinkUrl}
+        />
+        <TouchableOpacity style={styles.proceedButton} onPress={handleProceedWithLink}>
+          <Text style={styles.buttonText}>Proceed</Text>
+        </TouchableOpacity>
+      </View>
+
+      {shopperLoading ? (
         <ActivityIndicator size="small" color="#000" />
-      )}
+      ) : shopperName ? (
+        <Text style={styles.shopperText}>Shopper: {shopperName}</Text>
+      ) : null}
 
       <Text style={styles.label}>Product name</Text>
       <TextInput
@@ -206,6 +237,29 @@ const styles = StyleSheet.create({
     padding: 20,
     backgroundColor: '#fff',
     flexGrow: 1,
+  },
+  linkSection: {
+    marginBottom: 20,
+    padding: 15,
+    backgroundColor: '#f0f0f0',
+    borderRadius: 8,
+  },
+  linkTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#000',
+    marginBottom: 5,
+  },
+  linkSubtitle: {
+    fontSize: 14,
+    color: '#555',
+    marginBottom: 10,
+  },
+  proceedButton: {
+    backgroundColor: '#000',
+    padding: 12,
+    borderRadius: 8,
+    alignItems: 'center',
   },
   shopperText: {
     fontSize: 16,

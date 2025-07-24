@@ -14,6 +14,7 @@ import {
 } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { supabase } from '@/supabaseClient';
+import { useRouter } from 'expo-router';
 import type { StackNavigationProp } from '@react-navigation/stack';
 
 type RootStackParamList = {
@@ -27,6 +28,7 @@ type RootStackParamList = {
 
 const ProfileScreen = () => {
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
+  const router = useRouter();
 
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
@@ -64,6 +66,8 @@ const ProfileScreen = () => {
     const { error } = await supabase.auth.signOut();
     if (error) {
       console.error('Logout error:', error.message);
+    } else {
+      router.replace('/'); // Navigate to the home/login screen
     }
   };
 

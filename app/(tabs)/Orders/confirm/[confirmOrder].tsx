@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { supabase } from '@/supabaseClient';
+import Toast from 'react-native-toast-message';
 import BouncyCheckbox from 'react-native-bouncy-checkbox';
 
 const ConfirmOrder = () => {
@@ -33,7 +34,7 @@ const ConfirmOrder = () => {
 
       if (orderError) {
         console.error('Error fetching order:', orderError);
-        alert('Failed to load order info.');
+        Toast.show({ type: 'error', text1: 'Error', text2: 'Failed to load order info.' });
         setLoading(false);
         return;
       }
@@ -85,7 +86,7 @@ const ConfirmOrder = () => {
 
     const { data: userData, error: authError } = await supabase.auth.getUser();
     if (authError || !userData.user) {
-      alert('Please log in to confirm the order.');
+      Toast.show({ type: 'error', text1: 'Authentication Error', text2: 'Please log in to confirm the order.' });
       return;
     }
 
@@ -116,7 +117,7 @@ const ConfirmOrder = () => {
     ]);
 
     if (insertError) {
-      alert('Failed to confirm the order. Please check the database trigger.');
+      Toast.show({ type: 'error', text1: 'Database Error', text2: 'Failed to confirm the order.' });
       console.error(insertError);
       return;
     }
@@ -127,10 +128,14 @@ const ConfirmOrder = () => {
       .eq('id', order.id);
 
     if (updateError) {
-      alert('Order confirmed, but failed to update status.');
+      Toast.show({ type: 'error', text1: 'Update Error', text2: 'Order confirmed, but failed to update status.' });
       console.error(updateError);
     } else {
-      alert('Order confirmed successfully!');
+      Toast.show({
+        type: 'success',
+        text1: 'Order Confirmed!',
+        text2: 'You can now track the order in your "My Orders" section.',
+      });
       router.replace('/(tabs)/Home');
     }
   };

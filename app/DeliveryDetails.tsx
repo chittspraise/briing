@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import {
+  Image,
   SafeAreaView,
   ScrollView,
   StyleSheet,
@@ -25,13 +26,6 @@ const DeliveryDetailsPage = () => {
     wait_time,
     setDeliveryDetails,
     setTravelerId,
-    item_name,
-    store,
-    price,
-    quantity,
-    details,
-    with_box,
-    image_url,
   } = useTravelerOrderStore();
 
   const [deliverFrom, setDeliverFrom] = useState(deliver_from || 'United States of America');
@@ -46,11 +40,6 @@ const DeliveryDetailsPage = () => {
   useEffect(() => {
     // Set travelerId to store if it exists
     setTravelerId(travelerId ?? null);
-    console.log(
-      travelerId
-        ? `🟢 travelerId set in store: ${travelerId}`
-        : 'ℹ️ No travelerId provided — cleared in store'
-    );
   }, [travelerId]);
 
   const proceedToSummary = () => {
@@ -62,22 +51,6 @@ const DeliveryDetailsPage = () => {
         deliver_from: deliverFrom,
         destination: deliverTo,
         wait_time: waitTime,
-      });
-
-      console.log('✅ Delivery details saved to store:', {
-        deliver_from: deliverFrom,
-        destination: deliverTo,
-        wait_time: waitTime,
-      });
-
-      console.log('🧾 Existing product details in store:', {
-        item_name,
-        store,
-        price,
-        quantity,
-        details,
-        with_box,
-        image_url,
       });
 
       setLoading(false);
@@ -92,59 +65,60 @@ const DeliveryDetailsPage = () => {
   };
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.heading}>Delivery details</Text>
+    <SafeAreaView style={styles.sav}>
+      <ScrollView contentContainerStyle={styles.container}>
+        <Text style={styles.heading}>Delivery details</Text>
 
-      <Text style={styles.label}>Deliver from</Text>
-      <TextInput style={styles.input} value={deliverFrom} onChangeText={setDeliverFrom} />
+        <Text style={styles.label}>Deliver from</Text>
+        <TextInput style={styles.input} value={deliverFrom} onChangeText={setDeliverFrom} />
 
-      <Text style={styles.label}>Deliver to</Text>
-      <TextInput style={styles.input} value={deliverTo} onChangeText={setDeliverTo} />
+        <Text style={styles.label}>Deliver to</Text>
+        <TextInput style={styles.input} value={deliverTo} onChangeText={setDeliverTo} />
 
-      <Text style={styles.info}>
-        A traveler going to your city will deliver your order. Enter the country your order is coming from and which city you want it to be delivered to.
-      </Text>
-
-      <Text style={styles.label}>How long are you willing to wait?</Text>
-      <View style={styles.pickerWrapper}>
-        <Picker selectedValue={waitTime} onValueChange={setWaitTime} style={styles.picker}>
-          {waitOptions.map((option) => (
-            <Picker.Item key={option} label={option} value={option} />
-          ))}
-        </Picker>
-      </View>
-
-      <Text style={styles.subText}>
-        The longer period you are ready to wait, the more offers you receive and can choose from.
-      </Text>
-
-      <TouchableOpacity
-        style={[styles.button, loading && { opacity: 0.6 }]}
-        onPress={proceedToSummary}
-        disabled={loading}
-      >
-        <Text style={styles.buttonText}>{loading ? 'Saving...' : 'Next'}</Text>
-      </TouchableOpacity>
-
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>Do you have an FNB card?</Text>
-        <Text style={styles.cardText}>
-          You can open one with FNB and pay directly in South African rands. Available nationwide.
+        <Text style={styles.info}>
+          A traveler going to your city will deliver your order. Enter the country your order is coming from and which city you want it to be delivered to.
         </Text>
-        <Image
-          source={{
-            uri: 'https://upload.wikimedia.org/wikipedia/commons/3/3e/FNB_Logo.png',
-          }}
-          style={styles.cardImage}
-        />
-      </View>
-    </ScrollView>
+
+        <Text style={styles.label}>How long are you willing to wait?</Text>
+        <View style={styles.pickerWrapper}>
+          <Picker selectedValue={waitTime} onValueChange={setWaitTime} style={styles.picker}>
+            {waitOptions.map((option) => (
+              <Picker.Item key={option} label={option} value={option} />
+            ))}
+          </Picker>
+        </View>
+
+        <Text style={styles.subText}>
+          The longer period you are ready to wait, the more offers you receive and can choose from.
+        </Text>
+
+        <TouchableOpacity
+          style={[styles.button, loading && { opacity: 0.6 }]}
+          onPress={proceedToSummary}
+          disabled={loading}
+        >
+          <Text style={styles.buttonText}>{loading ? 'Saving...' : 'Next'}</Text>
+        </TouchableOpacity>
+
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Do you have an FNB card?</Text>
+          <Text style={styles.cardText}>
+            You can open one with FNB and pay directly in South African rands. Available nationwide.
+          </Text>
+          <Image
+            source={require('../assets/images/fnblogo.jpeg')}
+            style={styles.cardImage}
+          />
+        </View>
+      </ScrollView>
+    </SafeAreaView>
   );
 };
 
 export default DeliveryDetailsPage;
 
 const styles = StyleSheet.create({
+  sav: { flex: 1, backgroundColor: '#fff' },
   container: { padding: 20, backgroundColor: '#fff', flexGrow: 1 },
   heading: { fontSize: 18, fontWeight: 'bold', color: '#000', marginBottom: 20 },
   label: { fontSize: 15, fontWeight: 'bold', color: '#000', marginTop: 20, marginBottom: 6 },

@@ -28,15 +28,16 @@ type Profile = {
 };
 
 export default function ChatPage() {
-  const { chatId, receiverId } = useLocalSearchParams<{
+  const { chatId, receiverId, otherUserName, otherUserAvatar } = useLocalSearchParams<{
     chatId: string;
     receiverId: string;
+    otherUserName: string;
+    otherUserAvatar: string;
   }>();
 
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
-  const [otherUserProfile, setOtherUserProfile] = useState<Profile | null>(null);
   const flatListRef = useRef<FlatList>(null);
 
   useEffect(() => {
@@ -50,24 +51,6 @@ export default function ChatPage() {
     };
     fetchUser();
   }, []);
-
-  useEffect(() => {
-    if (!receiverId) return;
-    const fetchProfile = async () => {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('first_name, image_url')
-        .eq('id', receiverId)
-        .single();
-
-      if (error) {
-        console.error('Failed to fetch profile:', error);
-      } else {
-        setOtherUserProfile(data);
-      }
-    };
-    fetchProfile();
-  }, [receiverId]);
 
 
   useEffect(() => {
@@ -166,16 +149,16 @@ export default function ChatPage() {
         <Image
           source={{
             uri:
-              otherUserProfile?.image_url?.trim()
-                ? otherUserProfile.image_url
-                : `https://placehold.co/40x40/000000/FFFFFF?text=${otherUserProfile?.first_name
+              otherUserAvatar?.trim()
+                ? otherUserAvatar
+                : `https://placehold.co/40x40/000000/FFFFFF?text=${otherUserName
                     ?.slice(0, 2)
                     .toUpperCase() ?? '??'}`,
           }}
           style={styles.headerAvatar}
         />
         <Text style={styles.headerName}>
-          {otherUserProfile?.first_name ?? 'user'}
+          {otherUserName ?? 'user'}
         </Text>
       </View>
 

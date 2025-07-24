@@ -5,171 +5,152 @@ import {
   FlatList,
   StyleSheet,
   TouchableOpacity,
+  TextInput,
+  Image,
+  ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { supabase } from '@/supabaseClient';
+import { Ionicons } from '@expo/vector-icons';
 
 type Conversation = {
   id: string; // chat_id
-  name: string; // sender first_name of latest message
+  other_user_id: string;
+  name: string; // other user's first_name
+  avatar: string; // other user's avatar
   last_message: string;
   updated_at: string;
+  unread_count: number;
 };
 
 const MessagesPage = () => {
   const [conversations, setConversations] = useState<Conversation[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
   const router = useRouter();
 
   useEffect(() => {
-    fetchConversations();
-  }, []);
-
-  const fetchConversations = async () => {
-    setLoading(true);
-
-    const {
-      data: { user },
-      error: userError,
-    } = await supabase.auth.getUser();
-
-    if (userError || !user) {
-      console.error('Error getting user:', userError);
-      setLoading(false);
-      return;
-    }
-
-    const userId = user.id;
-
-    try {
-      // Step 1: Get all unique chat_ids where user is sender or receiver
-      const { data: chatIdsData, error: chatIdsError } = await supabase
-        .from('messages')
-        .select('chat_id', { count: 'exact', head: false })
-        .or(`sender_id.eq.${userId},receiver_id.eq.${userId}`)
-        .limit(1000); // increase if needed
-
-      if (chatIdsError) {
-        throw chatIdsError;
-      }
-
-      if (!chatIdsData || chatIdsData.length === 0) {
-        setConversations([]);
+    const fetchConversations = async () => {
+      setLoading(true);
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
         setLoading(false);
         return;
       }
 
-      // Extract unique chat_ids
-      const uniqueChatIds = Array.from(
-        new Set(chatIdsData.map((m) => m.chat_id))
-      );
+      const { data, error } = await supabase.rpc('get_conversations', { user_id_param: user.id });
 
-      // Step 2: For each chat_id fetch latest message + sender profile
-      const promises = uniqueChatIds.map(async (chatId) => {
-        const { data, error } = await supabase
-          .from('messages')
-          .select(`
-            id,
-            chat_id,
-            message,
-            created_at,
-            sender_id,
-            profiles!sender_id (
-              first_name
-            )
-          `)
-          .eq('chat_id', chatId)
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .single();
+      if (error) {
+        console.error('Error fetching conversations:', error);
+        setConversations([]);
+      } else {
+        setConversations(data || []);
+      }
+      setLoading(false);
+    };
 
-        if (error) {
-          console.error('Error fetching latest message for chat:', chatId, error);
-          return null;
-        }
+    fetchConversations();
 
-        if (!data) return null;
+    const channel = supabase
+      .channel('public:messages')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'messages' }, fetchConversations)
+      .subscribe();
 
-        type Profile = { first_name: string };
-        const profiles = data.profiles as Profile | Profile[] | null | undefined;
-        let name = 'Unknown';
-        if (Array.isArray(profiles)) {
-          name = profiles[0]?.first_name ?? 'Unknown';
-        } else if (profiles && typeof profiles === 'object') {
-          name = profiles.first_name ?? 'Unknown';
-        }
-        return {
-          id: data.chat_id,
-          last_message: data.message,
-          updated_at: data.created_at,
-          name,
-        } as Conversation;
-      });
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
 
-      const results = await Promise.all(promises);
-
-      const filteredResults = results.filter((r) => r !== null) as Conversation[];
-
-      // Step 3: Sort descending by updated_at
-      filteredResults.sort(
-        (a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
-      );
-
-      setConversations(filteredResults);
-    } catch (error) {
-      console.error('Error fetching conversations:', error);
-    }
-
-    setLoading(false);
-  };
+  const filteredConversations = conversations.filter(c =>
+    c.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   const renderItem = ({ item }: { item: Conversation }) => (
     <TouchableOpacity
       style={styles.messageCard}
       onPress={() =>
-        router.push({ pathname: '/Orders/[chatId]', params: { chatId: item.id } })
+        router.push({
+          pathname: '/Orders/[chatId]',
+          params: {
+            chatId: item.id,
+            receiverId: item.other_user_id,
+            otherUserName: item.name,
+            otherUserAvatar: item.avatar,
+          },
+        })
       }
     >
+      <Image source={{ uri: item.avatar || 'https://via.placeholder.com/50' }} style={styles.avatar} />
       <View style={styles.textContent}>
         <Text style={styles.name}>{item.name}</Text>
         <Text style={styles.messagePreview} numberOfLines={1}>
           {item.last_message ?? 'No messages yet.'}
         </Text>
       </View>
-      <Text style={styles.time}>
-        {new Date(item.updated_at).toLocaleTimeString([], {
-          hour: '2-digit',
-          minute: '2-digit',
-        })}
-      </Text>
+      <View style={styles.metaContent}>
+        <Text style={styles.time}>
+          {new Date(item.updated_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+        </Text>
+        {item.unread_count > 0 && (
+          <View style={styles.unreadBadge}>
+            <Text style={styles.unreadText}>{item.unread_count}</Text>
+          </View>
+        )}
+      </View>
     </TouchableOpacity>
   );
 
   return (
     <View style={styles.container}>
       <Text style={styles.header}>Messages</Text>
-      <FlatList
-        data={conversations}
-        keyExtractor={(item) => item.id}
-        renderItem={renderItem}
-        contentContainerStyle={styles.list}
-        refreshing={loading}
-        onRefresh={fetchConversations}
-        ListEmptyComponent={
-          !loading ? (
-            <Text style={{ textAlign: 'center', marginTop: 20, color: '#888' }}>
+      <View style={styles.searchContainer}>
+        <Ionicons name="search" size={20} color="#888" style={styles.searchIcon} />
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Search conversations..."
+          placeholderTextColor="#888"
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+        />
+      </View>
+      {loading ? (
+        <ActivityIndicator size="large" color="#fff" style={{ marginTop: 20 }} />
+      ) : (
+        <FlatList
+          data={filteredConversations}
+          keyExtractor={(item, index) => `${item.id}-${index}`}
+          renderItem={renderItem}
+          contentContainerStyle={styles.list}
+          ListEmptyComponent={
+            <Text style={styles.emptyText}>
               No conversations found.
             </Text>
-          ) : null
-        }
-      />
+          }
+        />
+      )}
     </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#000', paddingTop: 50 },
-  header: { fontSize: 24, fontWeight: '700', marginLeft: 16, marginBottom: 16, color: '#fff' },
+  header: { fontSize: 28, fontWeight: 'bold', marginLeft: 16, marginBottom: 16, color: '#fff' },
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#1a1a1a',
+    borderRadius: 12,
+    marginHorizontal: 16,
+    marginBottom: 16,
+    paddingHorizontal: 12,
+  },
+  searchIcon: { marginRight: 8 },
+  searchInput: {
+    flex: 1,
+    height: 40,
+    color: '#fff',
+    fontSize: 16,
+  },
   list: { paddingHorizontal: 16 },
   messageCard: {
     flexDirection: 'row',
@@ -178,12 +159,28 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 12,
     marginBottom: 12,
-    justifyContent: 'space-between',
+  },
+  avatar: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    marginRight: 12,
   },
   textContent: { flex: 1, marginRight: 10 },
   name: { fontSize: 16, fontWeight: '600', color: '#fff' },
-  messagePreview: { fontSize: 14, color: '#ccc', marginTop: 2 },
-  time: { fontSize: 12, color: '#888', minWidth: 60, textAlign: 'right' },
+  messagePreview: { fontSize: 14, color: '#ccc', marginTop: 4 },
+  metaContent: { alignItems: 'flex-end' },
+  time: { fontSize: 12, color: '#888', marginBottom: 4 },
+  unreadBadge: {
+    backgroundColor: '#3498db',
+    borderRadius: 10,
+    minWidth: 20,
+    height: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  unreadText: { color: '#fff', fontSize: 12, fontWeight: 'bold' },
+  emptyText: { textAlign: 'center', marginTop: 50, color: '#888', fontSize: 16 },
 });
 
 export default MessagesPage;
