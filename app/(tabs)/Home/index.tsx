@@ -251,7 +251,12 @@ const HomeScreen: React.FC = () => {
           </TouchableOpacity>
 
           <View style={styles.storesSection}>
+            <View style={styles.storesSectionHeader}>
             <Text style={styles.sectionTitle}>ORDER FROM ONLINE STORE</Text>
+            <TouchableOpacity onPress={() => router.push('/all-stores')}>
+              <Text style={styles.seeAllText}>SEE ALL</Text>
+            </TouchableOpacity>
+          </View>
             <FlatList
               data={stores.slice(0, 5)}
               renderItem={renderStoreCard}
@@ -337,7 +342,7 @@ const HomeScreen: React.FC = () => {
                   />
                 )}
 
-                <Text style={styles.price}>ZAR{item.traveler_reward}</Text>
+                <Text style={styles.price}>Reward: ZAR {item.traveler_reward}</Text>
                 <Text style={styles.product}>
                   Price: ZAR{item.price} + Tax: ZAR{item.vat_estimate}
                 </Text>
@@ -523,7 +528,6 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     color: '#fff',
-    marginBottom: 15,
   },
   horizontalScroll: {
     gap: 15,
@@ -604,6 +608,16 @@ const styles = StyleSheet.create({
   },
   storesSection: {
     marginBottom: 20,
+  },
+  storesSectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 15,
+  },
+  seeAllText: {
+    color: '#fff',
+    fontWeight: 'bold',
   },
   storeList: {
     paddingVertical: 10,

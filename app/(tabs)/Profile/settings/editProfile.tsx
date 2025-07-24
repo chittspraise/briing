@@ -1,16 +1,19 @@
-import React, { useState, useEffect } from 'react';
+import { supabase } from '@/supabaseClient';
+import * as ImagePicker from 'expo-image-picker';
+import { router } from 'expo-router';
+import React, { useEffect, useState } from 'react';
 import {
-  View,
+  ActivityIndicator,
+  Image,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
-  StyleSheet,
-  Image,
-  ScrollView,
-  Alert,
+  View,
 } from 'react-native';
-import * as ImagePicker from 'expo-image-picker';
-import { supabase } from '@/supabaseClient';
+import Toast from 'react-native-toast-message';
 
 const EditProfileScreen = () => {
   const [firstName, setFirstName] = useState('');
@@ -23,7 +26,7 @@ const EditProfileScreen = () => {
     (async () => {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert('Permission denied', 'Photo access is required.');
+        Toast.show({ type: 'error', text1: 'Permission denied', text2: 'Photo access is required.' });
       }
 
       const {
@@ -32,7 +35,7 @@ const EditProfileScreen = () => {
       } = await supabase.auth.getUser();
 
       if (error || !user) {
-        Alert.alert('Error', 'Failed to get user');
+        Toast.show({ type: 'error', text1: 'Error', text2: 'Failed to get user' });
         return;
       }
 
@@ -78,7 +81,7 @@ const EditProfileScreen = () => {
           });
 
         if (uploadError) {
-          Alert.alert('Upload Error', uploadError.message);
+          Toast.show({ type: 'error', text1: 'Upload Error', text2: uploadError.message });
           setUploading(false);
           return;
         }
@@ -92,12 +95,12 @@ const EditProfileScreen = () => {
           .eq('id', userId);
 
         if (updateError) {
-          Alert.alert('Update Failed', updateError.message);
+          Toast.show({ type: 'error', text1: 'Update Failed', text2: updateError.message });
         } else {
-          Alert.alert('Image updated successfully');
+          Toast.show({ type: 'success', text1: 'Success', text2: 'Image updated successfully' });
         }
       } catch (error: any) {
-        Alert.alert('Upload Error', error.message);
+        Toast.show({ type: 'error', text1: 'Upload Error', text2: error.message });
       } finally {
         setUploading(false);
       }
@@ -116,9 +119,9 @@ const EditProfileScreen = () => {
     setUploading(false);
 
     if (error) {
-      Alert.alert('Save Failed', error.message);
+      Toast.show({ type: 'error', text1: 'Save Failed', text2: error.message });
     } else {
-      Alert.alert('Profile updated');
+      Toast.show({ type: 'success', text1: 'Success', text2: 'Profile updated' });
     }
   };
 

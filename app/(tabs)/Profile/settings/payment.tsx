@@ -1,13 +1,14 @@
+import { router } from 'expo-router';
 import React, { useState } from 'react';
 import {
-  View,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
   Text,
   TouchableOpacity,
-  StyleSheet,
-  ScrollView,
-  SafeAreaView,
-  Alert,
+  View,
 } from 'react-native';
+import Toast from 'react-native-toast-message';
 import { Picker } from '@react-native-picker/picker';
 
 const PayoutMethodScreen: React.FC = () => {
@@ -16,7 +17,7 @@ const PayoutMethodScreen: React.FC = () => {
 
   const handleContinue = () => {
     if (!selectedPayoutOption) {
-      Alert.alert('Selection Required', 'Please select a payout method to continue.');
+      Toast.show({ type: 'error', text1: 'Selection Required', text2: 'Please select a payout method to continue.' });
       return;
     }
     Alert.alert(

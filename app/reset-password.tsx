@@ -1,16 +1,16 @@
 import { supabase } from '@/supabaseClient';
 import { router, useLocalSearchParams } from 'expo-router';
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
-  View,
+  KeyboardAvoidingView,
+  Platform,
+  StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
-  StyleSheet,
-  Alert,
-  KeyboardAvoidingView,
-  Platform,
+  View,
 } from 'react-native';
+import Toast from 'react-native-toast-message';
 
 const ResetPasswordScreen: React.FC = () => {
   const [password, setPassword] = useState('');
@@ -28,15 +28,15 @@ const ResetPasswordScreen: React.FC = () => {
 
   const handleReset = async () => {
     if (password !== confirmPassword) {
-      Alert.alert('Error', 'Passwords do not match.');
+      Toast.show({ type: 'error', text1: 'Error', text2: 'Passwords do not match.' });
       return;
     }
     if (!password) {
-      Alert.alert('Error', 'Password cannot be empty.');
+      Toast.show({ type: 'error', text1: 'Error', text2: 'Password cannot be empty.' });
       return;
     }
     if (!token) {
-      Alert.alert('Error', 'Invalid or missing reset token.');
+      Toast.show({ type: 'error', text1: 'Error', text2: 'Invalid or missing reset token.' });
       return;
     }
 
@@ -56,12 +56,16 @@ const ResetPasswordScreen: React.FC = () => {
 
       await supabase.auth.signOut();
 
-      Alert.alert('Success', 'Your password has been reset successfully!');
+      Toast.show({
+        type: 'success',
+        text1: 'Success',
+        text2: 'Your password has been reset successfully!',
+      });
       router.push('/must-be-signed-in');
 
     } catch (err: any) {
       console.error('Password reset failed:', err);
-      Alert.alert('Error', err.message || 'Failed to reset password.');
+      Toast.show({ type: 'error', text1: 'Error', text2: err.message || 'Failed to reset password.' });
     } finally {
       setLoading(false);
     }

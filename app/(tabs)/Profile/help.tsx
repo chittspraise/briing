@@ -1,13 +1,15 @@
+import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
 import React from 'react';
 import {
-  View,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
   Text,
   TouchableOpacity,
-  StyleSheet,
-  ScrollView,
-  SafeAreaView,
-  Alert,
+  View,
 } from 'react-native';
+import Toast from 'react-native-toast-message';
 
 const ContentNotFoundScreen: React.FC = () => {
   const handleOpenInBrowser = () => {
@@ -19,7 +21,7 @@ const ContentNotFoundScreen: React.FC = () => {
       <ScrollView contentContainerStyle={styles.container}>
         {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => Alert.alert('Back', 'Go back to previous screen')}>
+          <TouchableOpacity onPress={() => router.back()}>
             <Text style={styles.backButton}>{'<'}</Text>
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Content not found</Text>
@@ -51,7 +53,7 @@ const ContentNotFoundScreen: React.FC = () => {
         <Text style={styles.messageDescription}>browser.</Text>
 
         {/* Open in Browser Button */}
-        <TouchableOpacity style={styles.openBrowserButton} onPress={handleOpenInBrowser}>
+        <TouchableOpacity onPress={() => Toast.show({ type: 'info', text1: 'Open in Browser', text2: 'This would open the content in a web browser.' })}>
           <Text style={styles.openBrowserButtonText}>Open in browser</Text>
         </TouchableOpacity>
       </ScrollView>

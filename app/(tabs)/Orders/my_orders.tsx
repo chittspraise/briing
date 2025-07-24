@@ -1,15 +1,16 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
-  View,
-  Text,
   FlatList,
-  TouchableOpacity,
   Image,
-  Alert,
+  
   StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
+import Toast from 'react-native-toast-message';
 import { Ionicons } from '@expo/vector-icons';
-import { router, useRouter } from 'expo-router';
+import { router,} from 'expo-router';
 import { supabase } from '@/supabaseClient';
 import { openStripeCheckout, setupStripePaymentSheet } from '@/app/lib/stripe';
 
@@ -127,7 +128,7 @@ const MyOrdersPage = () => {
           ? supabase.from('confirmed_orders').update({ status: newStatus }).eq('id', order.confirmed_id)
           : Promise.resolve({ error: null }),
       ]);
-      if (results.some(r => r.error)) Alert.alert('Error', 'Status update failed.');
+      if (results.some(r => r.error)) Toast.show({ type: 'error', text1: 'Error', text2: 'Status update failed.' });
       else fetchOrders(currentUserId!);
     }
   };
@@ -138,9 +139,9 @@ const MyOrdersPage = () => {
       await setupStripePaymentSheet(total);
       await openStripeCheckout();
       await updateStatus(order, 'paid');
-      Alert.alert('Success', 'Payment completed successfully.');
+      Toast.show({ type: 'success', text1: 'Success', text2: 'Payment completed successfully.' });
     } catch (err: any) {
-      Alert.alert('Payment Error', err.message);
+      Toast.show({ type: 'error', text1: 'Payment Error', text2: err.message });
     }
   };
 

@@ -1,22 +1,21 @@
-import React, { useState, useEffect } from 'react';
+import { useTravelerOrderStore } from '@/app/store/travelerOrderStore';
+import { supabase } from '@/supabaseClient';
+import { useRouter } from 'expo-router';
+import React, { useEffect, useState } from 'react';
 import {
-  View,
-  Text,
-  ScrollView,
-  Image,
-  StyleSheet,
+  ActivityIndicator,
   Dimensions,
   FlatList,
+  Image,
   NativeScrollEvent,
   NativeSyntheticEvent,
-  ActivityIndicator,
-  Alert,
+  ScrollView,
+  StyleSheet,
+  Text,
   TouchableOpacity,
+  View,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
-import { supabase } from '@/supabaseClient';
-import { useTravelerOrderStore } from '@/app/store/travelerOrderStore';
-
+import { Toast } from 'react-native-toast-message/lib/src/Toast';
 
 const { width } = Dimensions.get('window');
 
@@ -88,20 +87,6 @@ const popularStores = [
   },
 ];
 
-const PaginationDots = ({ count, activeIndex }: { count: number; activeIndex: number }) => (
-  <View style={styles.paginationContainer}>
-    {Array.from({ length: count }).map((_, index) => (
-      <View
-        key={index}
-        style={[
-          styles.dot,
-          index === activeIndex ? styles.activeDot : styles.inactiveDot,
-        ]}
-      />
-    ))}
-  </View>
-);
-
 const ExplorePage = () => {
   const [activeDestination, setActiveDestination] = useState(0);
   const [activeOffer, setActiveOffer] = useState(0);
@@ -109,7 +94,7 @@ const ExplorePage = () => {
   const [travelers, setTravelers] = useState<any[]>([]);
   const [loadingTravelers, setLoadingTravelers] = useState(true);
 
-  const navigation = useNavigation<any>();
+  const router = useRouter();
   const setTravelerId = useTravelerOrderStore((state) => state.setTravelerId);
 
   useEffect(() => {
@@ -127,7 +112,7 @@ const ExplorePage = () => {
 
       if (error) {
         console.error('Error fetching travelers:', error);
-        Alert.alert('Error', 'Failed to fetch travelers.');
+        Toast.show({ type: 'error', text1: 'Error', text2: 'Failed to fetch travelers.' });
       } else if (data) {
         const uuidRegex = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
         const validTravelers = data.filter(item => item.user_id && typeof item.user_id === 'string' && uuidRegex.test(item.user_id));
@@ -147,7 +132,7 @@ const ExplorePage = () => {
       }
     } catch (e) {
       console.error('Unexpected error:', e);
-      Alert.alert('Error', 'Unexpected error while fetching travelers.');
+      Toast.show({ type: 'error', text1: 'Error', text2: 'Unexpected error while fetching travelers.' });
     } finally {
       setLoadingTravelers(false);
     }
@@ -162,9 +147,7 @@ const ExplorePage = () => {
 
   const handleRequestDelivery = (travelerId: string) => {
     setTravelerId(travelerId);
-    navigation.navigate('customProduct', { travelerId });
-    
-
+    router.push({ pathname: '/customProduct', params: { travelerId } });
   };
 
   const renderCard = (item: any) => (
@@ -212,6 +195,20 @@ const ExplorePage = () => {
           <Text style={styles.requestButtonText}>Request Delivery</Text>
         </TouchableOpacity>
       </View>
+    </View>
+  );
+
+  const PaginationDots = ({ count, activeIndex }: { count: number; activeIndex: number }) => (
+    <View style={styles.paginationContainer}>
+      {Array.from({ length: count }).map((_, index) => (
+        <View
+          key={index}
+          style={[
+            styles.dot,
+            index === activeIndex ? styles.activeDot : styles.inactiveDot,
+          ]}
+        />
+      ))}
     </View>
   );
 

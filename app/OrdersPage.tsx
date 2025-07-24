@@ -1,16 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import {
-  View,
+  Image,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
-  StyleSheet,
-  Switch,
-  Image,
-  ScrollView,
-  Alert,
-  ActivityIndicator,
+  View,
 } from 'react-native';
+import Toast from 'react-native-toast-message';
 import * as ImagePicker from 'expo-image-picker';
 import { useNavigation } from '@react-navigation/native';
 import { useTravelerOrderStore } from './store/travelerOrderStore';
@@ -57,7 +56,7 @@ const ProductLinkPage = () => {
 
   const pickImage = async () => {
     if (images.length >= 2) {
-      Alert.alert('Limit reached', 'You can upload a maximum of 2 images.');
+      Toast.show({ type: 'info', text1: 'Limit reached', text2: 'You can upload a maximum of 2 images.' });
       return;
     }
 
@@ -76,17 +75,17 @@ const ProductLinkPage = () => {
 
   const proceedToDeliveryDetails = async () => {
     if (!productName.trim()) {
-      Alert.alert('Invalid input', 'Product name is required');
+      Toast.show({ type: 'error', text1: 'Invalid input', text2: 'Product name is required' });
       return;
     }
 
     if (!price || isNaN(Number(price))) {
-      Alert.alert('Invalid input', 'Please enter a valid price');
+      Toast.show({ type: 'error', text1: 'Invalid input', text2: 'Please enter a valid price' });
       return;
     }
 
     if (!quantity || isNaN(Number(quantity))) {
-      Alert.alert('Invalid input', 'Please enter a valid quantity');
+      Toast.show({ type: 'error', text1: 'Invalid input', text2: 'Please enter a valid quantity' });
       return;
     }
 

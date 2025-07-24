@@ -1,13 +1,13 @@
-import React, { useState } from 'react';
+import React from 'react';
 import {
-  View,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
   Text,
   TouchableOpacity,
-  StyleSheet,
-  ScrollView,
-  SafeAreaView,
-  Alert,
+  View,
 } from 'react-native';
+import Toast from 'react-native-toast-message';
 
 const WalletScreen: React.FC = () => {
   const [balance] = useState('$0.00');
@@ -31,7 +31,7 @@ const WalletScreen: React.FC = () => {
           <Text style={styles.balanceLabel}>Your balance</Text>
           <View style={styles.balanceRow}>
             <Text style={styles.balanceAmount}>{balance}</Text>
-            <TouchableOpacity style={styles.addButton} onPress={handleAddFunds}>
+            <TouchableOpacity style={styles.button} onPress={() => Toast.show({ type: 'info', text1: 'Add Funds', text2: 'Navigate to add funds functionality.' })}>
               <Text style={styles.addButtonText}>+</Text>
             </TouchableOpacity>
           </View>

@@ -1,19 +1,20 @@
-import React, { useState, useEffect } from 'react';
+import { supabase } from '@/supabaseClient';
+import { useFocusEffect, useRouter } from 'expo-router';
+import React, { useCallback, useState } from 'react';
 import {
-
+  ActivityIndicator,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
-  StyleSheet,
-  Alert,
-  SafeAreaView,
-  ScrollView,
+  View,
 } from 'react-native';
-import { supabase } from '@/supabaseClient';
-import { useNavigation } from '@react-navigation/native';
+import Toast from 'react-native-toast-message';
 
-const EditProfile = () => {
-  const navigation = useNavigation();
+const ProfilePage = () => {
+  const router = useRouter();
 
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
@@ -22,7 +23,7 @@ const EditProfile = () => {
   const [location, setLocation] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const loadProfile = async () => {
+  const loadProfile = useCallback(async () => {
     setLoading(true);
     const {
       data: { user },
@@ -30,7 +31,7 @@ const EditProfile = () => {
     } = await supabase.auth.getUser();
 
     if (userError || !user) {
-      Alert.alert('Error', 'Unable to get user.');
+      Toast.show({ type: 'error', text1: 'Error', text2: 'Unable to get user.' });
       setLoading(false);
       return;
     }
@@ -42,8 +43,8 @@ const EditProfile = () => {
       .single();
 
     if (error) {
-      Alert.alert('Error', error.message);
-    } else {
+      Toast.show({ type: 'error', text1: 'Error', text2: error.message });
+    } else if (data) {
       setFirstName(data.first_name || '');
       setLastName(data.last_name || '');
       setEmail(data.email || '');
@@ -51,7 +52,13 @@ const EditProfile = () => {
       setLocation(data.location || '');
     }
     setLoading(false);
-  };
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadProfile();
+    }, [loadProfile])
+  );
 
   const updateProfile = async () => {
     setLoading(true);
@@ -61,7 +68,7 @@ const EditProfile = () => {
 
     if (!user) {
       setLoading(false);
-      Alert.alert('Error', 'Unable to get user.');
+      Toast.show({ type: 'error', text1: 'Error', text2: 'Unable to get user.' });
       return;
     }
 
@@ -80,16 +87,20 @@ const EditProfile = () => {
     setLoading(false);
 
     if (error) {
-      Alert.alert('Update Failed', error.message);
+      Toast.show({ type: 'error', text1: 'Update Failed', text2: error.message });
     } else {
-      Alert.alert('Success', 'Profile updated successfully');
-      navigation.goBack();
+      Toast.show({ type: 'success', text1: 'Success', text2: 'Profile updated successfully' });
+      router.back();
     }
   };
 
-  useEffect(() => {
-    loadProfile();
-  }, []);
+  if (loading) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+        <ActivityIndicator size="large" />
+      </View>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -145,7 +156,7 @@ const EditProfile = () => {
   );
 };
 
-export default EditProfile;
+export default ProfilePage;
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: '#FFF' },

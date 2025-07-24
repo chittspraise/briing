@@ -1,23 +1,22 @@
+import * as ImagePicker from 'expo-image-picker';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import React, { useState } from 'react';
 import {
-  View,
+  Image,
+  ScrollView,
+  StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
-  StyleSheet,
+  View,
   Switch,
-  Image,
-  ScrollView,
-  Alert,
 } from 'react-native';
-import * as ImagePicker from 'expo-image-picker';
-import { useNavigation, useRoute } from '@react-navigation/native';
+import Toast from 'react-native-toast-message';
 import { useTravelerOrderStore } from './store/travelerOrderStore';
 
 const CustomProduct = () => {
-  const navigation = useNavigation<any>();
-  const route = useRoute();
-  const { travelerId } = (route.params as { travelerId?: string | null }) || {};
+  const router = useRouter();
+  const { travelerId } = useLocalSearchParams<{ travelerId?: string }>();
 
   const { setOrderDetails, setTravelerId } = useTravelerOrderStore();
 
@@ -32,7 +31,7 @@ const CustomProduct = () => {
 
   const pickImage = async () => {
     if (images.length >= 2) {
-      Alert.alert('Limit reached', 'You can upload a maximum of 2 images.');
+      Toast.show({ type: 'info', text1: 'Limit reached', text2: 'You can upload a maximum of 2 images.' });
       return;
     }
 
@@ -51,17 +50,17 @@ const CustomProduct = () => {
 
   const proceedToDeliveryDetails = () => {
     if (!productName.trim()) {
-      Alert.alert('Invalid input', 'Product name is required');
+      Toast.show({ type: 'error', text1: 'Invalid input', text2: 'Product name is required' });
       return;
     }
 
     if (!price || isNaN(Number(price))) {
-      Alert.alert('Invalid input', 'Please enter a valid price');
+      Toast.show({ type: 'error', text1: 'Invalid input', text2: 'Please enter a valid price' });
       return;
     }
 
     if (!quantity || isNaN(Number(quantity))) {
-      Alert.alert('Invalid input', 'Please enter a valid quantity');
+      Toast.show({ type: 'error', text1: 'Invalid input', text2: 'Please enter a valid quantity' });
       return;
     }
 
@@ -75,29 +74,17 @@ const CustomProduct = () => {
       details: details.trim(),
       with_box: withBox,
       image_url: images.join(','),
-      traveler_id: travelerId || null,  // Make sure to set null when travelerId isn't provided
+      traveler_id: travelerId || null,
     };
 
-    console.log('🔵 Setting orderDetails in store:', orderDetails);
     setOrderDetails(orderDetails);
 
-    // Log the Zustand store state after update (for debugging purposes)
-    setTimeout(() => {
-      const currentState = useTravelerOrderStore.getState();
-      console.log('🟢 Zustand store after setOrderDetails:', currentState);
-    }, 100);
-
     if (travelerId) {
-      console.log('🔵 Setting travelerId in store:', travelerId);
       setTravelerId(String(travelerId));
-      setTimeout(() => {
-        const currentState = useTravelerOrderStore.getState();
-        console.log('🟢 Zustand store after setTravelerId:', currentState);
-      }, 100);
     }
 
     setLoading(false);
-    navigation.navigate('DeliveryDetails', { travelerId });
+    router.push({ pathname: '/DeliveryDetails', params: { travelerId } });
   };
 
   return (

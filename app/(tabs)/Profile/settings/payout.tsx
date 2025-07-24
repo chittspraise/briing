@@ -1,13 +1,14 @@
+import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
 import {
-  View,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
   Text,
   TouchableOpacity,
-  StyleSheet,
-  ScrollView,
-  SafeAreaView,
-  Alert,
+  View,
 } from 'react-native';
+import Toast from 'react-native-toast-message';
 
 const PayoutsHistoryScreen: React.FC = () => {
   const handleSorting = () => {
@@ -29,10 +30,10 @@ const PayoutsHistoryScreen: React.FC = () => {
 
         {/* Sorting and Filters */}
         <View style={styles.controlsRow}>
-          <TouchableOpacity style={styles.controlButton} onPress={handleSorting}>
+          <TouchableOpacity style={styles.filterButton} onPress={() => Toast.show({ type: 'info', text1: 'Sorting', text2: 'Open sorting options.' })}>
             <Text style={styles.controlButtonText}>Sorting {'\u25BE'}</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.controlButton} onPress={handleFilters}>
+          <TouchableOpacity style={styles.controlButton} onPress={() => Toast.show({ type: 'info', text1: 'Filters', text2: 'Open filter options.' })}>
             <Text style={styles.controlButtonText}>Filters {'\u25BE'}</Text>
           </TouchableOpacity>
         </View>

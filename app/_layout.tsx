@@ -12,6 +12,7 @@ import { View, Text, ActivityIndicator } from 'react-native';
 import { StripeProvider } from '@stripe/stripe-react-native';
 import * as WebBrowser from 'expo-web-browser';
 import * as Linking from 'expo-linking';
+import Toast from 'react-native-toast-message';
 
 
 WebBrowser.maybeCompleteAuthSession();
@@ -96,6 +97,7 @@ export default function RootLayout() {
           </ThemeProvider>
         </TravelProvider>
       </OrderProvider>
+      <Toast />
     </StripeProvider>
   );
 }

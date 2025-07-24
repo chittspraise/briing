@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  TextInput,
+  SafeAreaView,
   ScrollView,
-  Image,
-  Alert,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
+import Toast from 'react-native-toast-message';
 import { Picker } from '@react-native-picker/picker';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useTravelerOrderStore } from './store/travelerOrderStore';
@@ -86,7 +86,7 @@ const DeliveryDetailsPage = () => {
       navigation.navigate('productSummary', travelerId ? { travelerId } : {});
     } catch (error) {
       setLoading(false);
-      Alert.alert('Error', 'Could not save delivery details.');
+      Toast.show({ type: 'error', text1: 'Error', text2: 'Could not save delivery details.' });
       console.error(error);
     }
   };

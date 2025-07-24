@@ -1,16 +1,16 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
-  StyleSheet,
-  Text,
-  View,
+  Image,
   SafeAreaView,
-  TouchableOpacity,
   ScrollView,
   StatusBar,
-  Alert,
+  StyleSheet,
+  Text,
   TextInput,
-  Image,
+  TouchableOpacity,
+  View,
 } from 'react-native';
+import Toast from 'react-native-toast-message';
 import { AntDesign, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { supabase } from '@/supabaseClient';
@@ -59,7 +59,7 @@ export default function SummaryPage() {
   // Submit order to Supabase
   const handleRequestDelivery = async () => {
     if (!userId) {
-      Alert.alert('Error', 'User not found. Please login again.');
+      Toast.show({ type: 'error', text1: 'Error', text2: 'User not found. Please login again.' });
       return;
     }
 
@@ -87,15 +87,19 @@ export default function SummaryPage() {
     try {
       const { error } = await supabase.from('product_orders').insert(payload);
       if (error) {
-        Alert.alert('Error', 'Could not create order');
+        Toast.show({ type: 'error', text1: 'Error', text2: 'Could not create order' });
         console.error('Supabase insert error:', error);
       } else {
         clearOrder();
-        Alert.alert('Success', 'Your delivery request has been submitted successfully.');
+        Toast.show({
+          type: 'success',
+          text1: 'Success',
+          text2: 'Your delivery request has been submitted successfully.',
+        });
         navigation.navigate('(tabs)', { screen: 'home' });
       }
     } catch (err) {
-      Alert.alert('Error', 'An unexpected error occurred.');
+      Toast.show({ type: 'error', text1: 'Error', text2: 'An unexpected error occurred.' });
       console.error('Unexpected error:', err);
     }
   };

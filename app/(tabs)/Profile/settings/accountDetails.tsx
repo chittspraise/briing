@@ -1,16 +1,17 @@
-import React, { useState, useEffect } from 'react';
+import { supabase } from '@/supabaseClient';
+import { router } from 'expo-router';
+import React, { useEffect, useState } from 'react';
 import {
-  View,
+  ActivityIndicator,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
-  StyleSheet,
-  ScrollView,
-  SafeAreaView,
-  Alert,
+  View,
 } from 'react-native';
-import { useRouter } from 'expo-router';
-import { supabase } from '@/supabaseClient';
+import Toast from 'react-native-toast-message';
 
 const AccountDetailsScreen: React.FC = () => {
   const router = useRouter();
@@ -28,7 +29,7 @@ const AccountDetailsScreen: React.FC = () => {
       } = await supabase.auth.getUser();
 
       if (error || !user) {
-        Alert.alert('Error', 'Could not fetch user.');
+        Toast.show({ type: 'error', text1: 'Error', text2: 'Could not fetch user.' });
         return;
       }
 
@@ -53,9 +54,9 @@ const AccountDetailsScreen: React.FC = () => {
     const { error } = await supabase.auth.resetPasswordForEmail(email);
 
     if (error) {
-      Alert.alert('Error', error.message);
+      Toast.show({ type: 'error', text1: 'Error', text2: error.message });
     } else {
-      Alert.alert('Password Reset', 'A recovery link has been sent to your email.');
+      Toast.show({ type: 'success', text1: 'Password Reset', text2: 'A recovery link has been sent to your email.' });
     }
   };
 
@@ -65,7 +66,7 @@ const AccountDetailsScreen: React.FC = () => {
     const { error: updateAuthError } = await supabase.auth.updateUser({ email });
 
     if (updateAuthError) {
-      Alert.alert('Error', updateAuthError.message);
+      Toast.show({ type: 'error', text1: 'Error', text2: updateAuthError.message });
       return;
     }
 
@@ -75,9 +76,9 @@ const AccountDetailsScreen: React.FC = () => {
       .eq('id', userId);
 
     if (updateProfileError) {
-      Alert.alert('Error', updateProfileError.message);
+      Toast.show({ type: 'error', text1: 'Error', text2: updateProfileError.message });
     } else {
-      Alert.alert('Success', 'Email updated.');
+      Toast.show({ type: 'success', text1: 'Success', text2: 'Email updated.' });
     }
   };
 
@@ -90,9 +91,9 @@ const AccountDetailsScreen: React.FC = () => {
       .eq('id', userId);
 
     if (error) {
-      Alert.alert('Error', error.message);
+      Toast.show({ type: 'error', text1: 'Error', text2: error.message });
     } else {
-      Alert.alert('Success', 'Phone number updated.');
+      Toast.show({ type: 'success', text1: 'Success', text2: 'Phone number updated.' });
     }
   };
 
@@ -118,9 +119,9 @@ const AccountDetailsScreen: React.FC = () => {
             const { error: authError } = await supabase.auth.admin.deleteUser(userId);
 
             if (profileError || authError) {
-              Alert.alert('Error', profileError?.message || authError?.message);
+              Toast.show({ type: 'error', text1: 'Error', text2: profileError?.message || authError?.message });
             } else {
-              Alert.alert('Account Deleted', 'Your account has been deleted.');
+              Toast.show({ type: 'success', text1: 'Account Deleted', text2: 'Your account has been deleted.' });
               router.replace('/'); // go to main screen
             }
           },

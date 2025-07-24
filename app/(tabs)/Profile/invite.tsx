@@ -1,13 +1,14 @@
+import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
 import React from 'react';
 import {
-  View,
+  SafeAreaView,
+  StyleSheet,
   Text,
   TouchableOpacity,
-  StyleSheet,
-  ScrollView,
-  SafeAreaView,
-  Alert,
+  View,
 } from 'react-native';
+import Toast from 'react-native-toast-message';
 
 const InviteFriendsScreen: React.FC = () => {
   const handleShareLink = () => {
@@ -20,7 +21,7 @@ const InviteFriendsScreen: React.FC = () => {
       <ScrollView contentContainerStyle={styles.container}>
         {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => Alert.alert('Back', 'Go back to previous screen')}>
+          <TouchableOpacity onPress={() => router.back()}>
             <Text style={styles.backButton}>{'<'}</Text>
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Invite Friends</Text>
@@ -46,7 +47,7 @@ const InviteFriendsScreen: React.FC = () => {
         </Text>
 
         {/* Share Button */}
-        <TouchableOpacity style={styles.shareButton} onPress={handleShareLink}>
+        <TouchableOpacity style={styles.button} onPress={() => Toast.show({ type: 'info', text1: 'Share Link', text2: 'Share functionality would be implemented here.' })}>
           <Text style={styles.shareButtonText}>Share a link</Text>
         </TouchableOpacity>
       </ScrollView>

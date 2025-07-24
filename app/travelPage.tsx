@@ -1,18 +1,18 @@
+import { supabase } from '@/supabaseClient';
 import React, { useState } from 'react';
 import {
-  View,
-  Text,
+  ScrollView,
   StyleSheet,
+  Text,
   TextInput,
   TouchableOpacity,
-  ScrollView,
-  Alert,
+  View,
   Image,
 } from 'react-native';
+import Toast from 'react-native-toast-message';
+import { useNavigation } from '@react-navigation/native';
 import { Calendar } from 'react-native-calendars';
 import { useTravel } from './providers/travelProvider';
-import { supabase } from '@/supabaseClient';
-import { useNavigation } from 'expo-router';
 
 const TravelBookingPage: React.FC = () => {
   const { setTravel } = useTravel();
@@ -38,21 +38,25 @@ const TravelBookingPage: React.FC = () => {
 
   const addTrip = async () => {
     if (!from.trim() || !to.trim() || !departureDate || !travelerName.trim()) {
-      Alert.alert('Missing fields', 'Please fill in all required fields.');
+      Toast.show({ type: 'error', text1: 'Missing fields', text2: 'Please fill in all required fields.' });
       return;
     }
     if (tripType === 'Round trip' && !returnDate) {
-      Alert.alert('Missing return date', 'Please select a return date for round trip.');
+      Toast.show({ type: 'error', text1: 'Missing return date', text2: 'Please select a return date for round trip.' });
       return;
     }
 
     setLoading(true);
 
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-        Alert.alert('Error', 'You must be logged in to add a trip.');
-        setLoading(false);
-        return;
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser();
+
+    if (userError || !user) {
+      Toast.show({ type: 'error', text1: 'Error', text2: 'You must be logged in to add a trip.' });
+      setLoading(false);
+      return;
     }
 
     const travelInfo = {
@@ -60,7 +64,7 @@ const TravelBookingPage: React.FC = () => {
       from_country: from.trim(),
       to_country: to.trim(),
       departure_date: departureDate,
-      return_date: tripType === 'Round trip' ? returnDate : undefined,
+      return_date: tripType === 'Round trip' ? returnDate : null,
       traveler_name: travelerName.trim(),
       is_available: true,
       notes: `Budget: R${budget}`,
@@ -70,16 +74,16 @@ const TravelBookingPage: React.FC = () => {
       const { error } = await supabase.from('travel').insert([travelInfo]);
       if (error) {
         console.error('Insert error:', error);
-        Alert.alert('Error', 'Failed to save trip. Please try again.');
+        Toast.show({ type: 'error', text1: 'Error', text2: 'Failed to save trip. Please try again.' });
         return;
       }
 
       setTravel(travelInfo);
-      Alert.alert('Success', 'Trip saved successfully!');
+      Toast.show({ type: 'success', text1: 'Success', text2: 'Trip saved successfully!' });
       navigation.navigate('(tabs)', { screen: 'home' });
     } catch (e) {
       console.error('Unexpected error:', e);
-      Alert.alert('Error', 'An unexpected error occurred.');
+      Toast.show({ type: 'error', text1: 'Error', text2: 'An unexpected error occurred.' });
     } finally {
       setLoading(false);
     }
@@ -87,9 +91,8 @@ const TravelBookingPage: React.FC = () => {
 
   return (
     <ScrollView style={styles.container}>
-      {/* Image Banner */}
       <Image
-        source={require('@/assets/images/OIP.jpeg')} // Replace with your own image path
+        source={require('@/assets/images/OIP.jpeg')} // replace with your actual image
         style={styles.bannerImage}
       />
 
@@ -110,6 +113,7 @@ const TravelBookingPage: React.FC = () => {
         onChangeText={setFrom}
         editable={!loading}
       />
+
       <TextInput
         style={styles.input}
         placeholder="To"

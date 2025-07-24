@@ -7,10 +7,10 @@ import {
   ScrollView,
   TouchableOpacity,
   ActivityIndicator,
-  
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { supabase } from '@/supabaseClient';
+import BouncyCheckbox from 'react-native-bouncy-checkbox';
 
 const ConfirmOrder = () => {
   const { confirmOrder } = useLocalSearchParams();
@@ -19,6 +19,7 @@ const ConfirmOrder = () => {
   const [loading, setLoading] = useState(true);
   const [shopperProfile, setShopperProfile] = useState<any>(null);
   const [travelerProfile, setTravelerProfile] = useState<any>(null);
+  const [isAgreed, setIsAgreed] = useState(false);
 
   useEffect(() => {
     const fetchOrderAndProfiles = async () => {
@@ -80,7 +81,7 @@ const ConfirmOrder = () => {
   }, [confirmOrder]);
 
   const handleConfirm = async () => {
-    if (!order) return;
+    if (!order || !isAgreed) return;
 
     const { data: userData, error: authError } = await supabase.auth.getUser();
     if (authError || !userData.user) {
@@ -91,11 +92,9 @@ const ConfirmOrder = () => {
     const travelerId = userData.user.id;
     const total = parseFloat(order.price) + parseFloat(order.vat_estimate);
 
-    // This is the insert that is causing the error.
-    // The database trigger is expecting a column named "product_order_id".
     const { error: insertError } = await supabase.from('confirmed_orders').insert([
       {
-        order_id: order.id, // Using 'order_id' as requested.
+        order_id: order.id,
         traveler_id: travelerId,
         shopper_id: order.user_id,
         reward: order.traveler_reward,
@@ -132,7 +131,7 @@ const ConfirmOrder = () => {
       console.error(updateError);
     } else {
       alert('Order confirmed successfully!');
-      router.replace('/');
+      router.replace('/(tabs)/Home');
     }
   };
 
@@ -146,45 +145,64 @@ const ConfirmOrder = () => {
   }
 
   return (
-    <ScrollView style={styles.container}>
-      <Text style={styles.heading}>Confirm Delivery Request</Text>
+    <View style={styles.container}>
+      <ScrollView contentContainerStyle={styles.scrollContent}>
+        <Text style={styles.heading}>Confirm Delivery Request</Text>
 
-      {order.image_url?.trim() !== '' && (
-        <Image source={{ uri: order.image_url }} style={styles.image} />
-      )}
+        {order.image_url?.trim() !== '' && (
+          <Image source={{ uri: order.image_url }} style={styles.image} />
+        )}
 
-      <Text style={styles.label}>Product:</Text>
-      <Text style={styles.value}>{order.item_name}</Text>
+        <Text style={styles.label}>Product:</Text>
+        <Text style={styles.value}>{order.item_name}</Text>
 
-      {order.store?.trim() !== '' && (
-        <>
-          <Text style={styles.label}>Store:</Text>
-          <Text style={styles.value}>{order.store}</Text>
-        </>
-      )}
+        {order.store?.trim() !== '' && (
+          <>
+            <Text style={styles.label}>Store:</Text>
+            <Text style={styles.value}>{order.store}</Text>
+          </>
+        )}
 
-      <Text style={styles.label}>Price:</Text>
-      <Text style={styles.value}>R{order.price}</Text>
+        <Text style={styles.label}>Price:</Text>
+        <Text style={styles.value}>R{order.price}</Text>
 
-      <Text style={styles.label}>Estimated Tax:</Text>
-      <Text style={styles.value}>R{order.vat_estimate}</Text>
+        <Text style={styles.label}>Estimated Tax:</Text>
+        <Text style={styles.value}>R{order.vat_estimate}</Text>
 
-      <Text style={styles.label}>You Earn:</Text>
-      <Text style={[styles.value, styles.reward]}>R{order.traveler_reward}</Text>
+        <Text style={styles.label}>You Earn:</Text>
+        <Text style={[styles.value, styles.reward]}>R{order.traveler_reward}</Text>
 
-      <Text style={styles.label}>From:</Text>
-      <Text style={styles.value}>{order.source_country}</Text>
+        <Text style={styles.label}>From:</Text>
+        <Text style={styles.value}>{order.source_country}</Text>
 
-      <Text style={styles.label}>To:</Text>
-      <Text style={styles.value}>{order.destination}</Text>
+        <Text style={styles.label}>To:</Text>
+        <Text style={styles.value}>{order.destination}</Text>
 
-      <Text style={styles.label}>Wait Time:</Text>
-      <Text style={styles.value}>{order.wait_time}</Text>
+        <Text style={styles.label}>Wait Time:</Text>
+        <Text style={styles.value}>{order.wait_time}</Text>
+      </ScrollView>
 
-      <TouchableOpacity style={styles.confirmButton} onPress={handleConfirm}>
-        <Text style={styles.confirmText}>Confirm Delivery Request</Text>
-      </TouchableOpacity>
-    </ScrollView>
+      <View style={styles.footer}>
+        <BouncyCheckbox
+          size={22}
+          fillColor="#00C753"
+          unFillColor="transparent"
+          text="I agree to purchase and deliver this item within the specified time."
+          iconStyle={{ borderColor: '#fff', borderRadius: 6 }}
+          innerIconStyle={{ borderWidth: 2, borderRadius: 6 }}
+          textStyle={styles.declarationText}
+          onPress={(isChecked: boolean) => setIsAgreed(isChecked)}
+          style={{ marginBottom: 15 }}
+        />
+        <TouchableOpacity
+          style={[styles.confirmButton, !isAgreed && styles.disabledButton]}
+          onPress={handleConfirm}
+          disabled={!isAgreed}
+        >
+          <Text style={styles.confirmText}>Confirm Delivery Request</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
   );
 };
 
@@ -192,7 +210,10 @@ const styles = StyleSheet.create({
   container: {
     backgroundColor: '#000',
     flex: 1,
+  },
+  scrollContent: {
     padding: 20,
+    paddingBottom: 10,
   },
   heading: {
     color: '#fff',
@@ -207,6 +228,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     marginBottom: 16,
     backgroundColor: '#111',
+    resizeMode: 'contain',
   },
   label: {
     color: '#aaa',
@@ -222,11 +244,23 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#0f0',
   },
+  footer: {
+    padding: 20,
+    borderTopWidth: 1,
+    borderTopColor: '#222',
+  },
+  declarationText: {
+    color: '#ccc',
+    fontSize: 14,
+    textDecorationLine: 'none',
+  },
   confirmButton: {
     backgroundColor: '#fff',
     padding: 14,
     borderRadius: 10,
-    marginTop: 30,
+  },
+  disabledButton: {
+    backgroundColor: '#555',
   },
   confirmText: {
     color: '#000',

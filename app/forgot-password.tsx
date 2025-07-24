@@ -1,15 +1,16 @@
 import { supabase } from '@/supabaseClient';
+import { router } from 'expo-router';
 import React, { useState } from 'react';
 import {
-  View,
+  KeyboardAvoidingView,
+  Platform,
+  StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
-  StyleSheet,
-  Alert,
-  KeyboardAvoidingView,
-  Platform,
+  View,
 } from 'react-native';
+import Toast from 'react-native-toast-message';
 
 const ForgotPasswordScreen: React.FC = () => {
   const [email, setEmail] = useState('');
@@ -18,7 +19,7 @@ const ForgotPasswordScreen: React.FC = () => {
   const handlePasswordReset = async () => {
     setLoading(true);
     if (!email) {
-      Alert.alert('Error', 'Please enter your email address.');
+      Toast.show({ type: 'error', text1: 'Error', text2: 'Please enter your email address.' });
       setLoading(false);
       return;
     }
@@ -30,10 +31,10 @@ const ForgotPasswordScreen: React.FC = () => {
 
       if (error) throw error;
 
-      Alert.alert('Success', 'Password reset link sent! Please check your email.');
+      Toast.show({ type: 'success', text1: 'Success', text2: 'Password reset link sent! Please check your email.' });
     } catch (err: any) {
       console.error('Password reset error:', err);
-      Alert.alert('Error', err.message || 'Failed to send reset link.');
+      Toast.show({ type: 'error', text1: 'Error', text2: err.message || 'Failed to send reset link.' });
     } finally {
       setLoading(false);
     }
