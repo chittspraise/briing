@@ -1,8 +1,8 @@
 import { supabase } from '@/supabaseClient';
-import { router } from 'expo-router';
+import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
-  ActivityIndicator,
+  
   SafeAreaView,
   ScrollView,
   StyleSheet,
@@ -10,6 +10,7 @@ import {
   TextInput,
   TouchableOpacity,
   View,
+  Alert,
 } from 'react-native';
 import Toast from 'react-native-toast-message';
 
@@ -109,20 +110,15 @@ const AccountDetailsScreen: React.FC = () => {
           onPress: async () => {
             if (!userId) return;
 
-            // Delete from profiles first
-            const { error: profileError } = await supabase
-              .from('profiles')
-              .delete()
-              .eq('id', userId);
-
-            // Delete from auth (requires elevated API access)
-            const { error: authError } = await supabase.auth.admin.deleteUser(userId);
-
-            if (profileError || authError) {
-              Toast.show({ type: 'error', text1: 'Error', text2: profileError?.message || authError?.message });
+            // Deleting a user from the client-side is not recommended.
+            // This should be handled by a server-side function with admin privileges.
+            // For now, we will just sign the user out.
+            const { error } = await supabase.auth.signOut();
+            if (error) {
+              Toast.show({ type: 'error', text1: 'Error', text2: error.message });
             } else {
-              Toast.show({ type: 'success', text1: 'Account Deleted', text2: 'Your account has been deleted.' });
-              router.replace('/'); // go to main screen
+              Toast.show({ type: 'success', text1: 'Signed Out', text2: 'You have been signed out.' });
+              router.replace('/');
             }
           },
         },

@@ -1,33 +1,33 @@
 {
   "expo": {
-    "name": "2025",
-    "slug": "2025",
-    "version": "1.0.0",
+    "name": "briing",
+    "slug": "briing",
+    "version": "1.0.1",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
-    "scheme": "app2025",
+    "icon": "./assets/images/Briing in Bold Contrast.png",
+    "scheme": "briing",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.yourcompany.yourapp",
+      "bundleIdentifier": "com.vesta.briing",
       "associatedDomains": [
         "applinks:yourdomain.com"
       ]
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/adaptive-icon.png",
+        "foregroundImage": "./assets/images/Briing in Bold Contrast.png",
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
-      "package": "com.yourcompany.yourapp",
+      "package": "com.vesta.briing",
       "intentFilters": [
         {
           "action": "VIEW",
           "data": [
             {
-              "scheme": "app2025",
+              "scheme": "briing",
               "host": "*"
             }
           ],
@@ -44,16 +44,9 @@
       "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
-      "expo-router",
-      [
-        "expo-splash-screen",
-        {
-          "image": "./assets/images/splash-icon.png",
-          "imageWidth": 200,
-          "resizeMode": "contain",
-          "backgroundColor": "#ffffff"
-        }
-      ]
+      "expo-router"
+      
+
     ],
     "experiments": {
       "typedRoutes": true
@@ -61,8 +54,9 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "17d6dcb3-09d7-4e4e-a92b-f6e075162407"
+        "projectId": "05fc80f7-9f21-483c-bc3b-c794527f2035"
       }
-    }
+    },
+    "owner": "chitts"
   }
 }

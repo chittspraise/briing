@@ -1,11 +1,10 @@
 import { supabase } from '@/supabaseClient';
 import * as ImagePicker from 'expo-image-picker';
-import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
-  ActivityIndicator,
+ 
   Image,
-  SafeAreaView,
+  
   ScrollView,
   StyleSheet,
   Text,

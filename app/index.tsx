@@ -40,7 +40,7 @@ const AuthScreen: React.FC = () => {
         if (error) throw error;
 
         Toast.show({ type: 'success', text1: 'Success', text2: 'Logged in!' });
-        router.push('/Home');
+        router.replace('/(tabs)/Home');
       } else {
         const { data, error } = await supabase.auth.signUp({
           email: email.trim().toLowerCase(),
@@ -65,7 +65,7 @@ const AuthScreen: React.FC = () => {
         if (profileError) throw profileError;
 
         Toast.show({ type: 'success', text1: 'Success', text2: 'Account created successfully!' });
-        router.push('/Home');
+        router.replace('/(tabs)/Home');
       }
     } catch (err: any) {
       console.log('Error:', err); // 🔍 Full error in console
@@ -77,7 +77,7 @@ const AuthScreen: React.FC = () => {
 
   return (
     <ImageBackground
-      source={require('@/assets/images/background.png')}
+      source={require('@/assets/images/authscreenimage.jpg')}
       style={styles.background}
     >
       <KeyboardAvoidingView
@@ -165,28 +165,33 @@ const styles = StyleSheet.create({
   },
   container: {
     flex: 1,
+    justifyContent: 'center',
   },
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: 'rgba(0, 0, 0, 0.4)', // Slightly darker overlay for better text contrast
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 30,
   },
   title: {
-    fontSize: 28,
+    fontSize: 36,
     color: '#fff',
     marginBottom: 40,
     fontWeight: 'bold',
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: -1, height: 1 },
+    textShadowRadius: 10,
   },
   input: {
     width: '100%',
     height: 50,
-    backgroundColor: 'rgba(255, 255, 255, 0.8)',
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
     borderRadius: 8,
     paddingHorizontal: 15,
     marginBottom: 15,
     color: '#000',
+    fontSize: 16,
   },
   button: {
     width: '100%',
@@ -196,6 +201,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
   },
   buttonText: {
     color: '#000',
@@ -206,6 +219,10 @@ const styles = StyleSheet.create({
     color: '#fff',
     marginTop: 10,
     textDecorationLine: 'underline',
+    fontWeight: 'bold',
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: -1, height: 1 },
+    textShadowRadius: 5,
   },
 });
 

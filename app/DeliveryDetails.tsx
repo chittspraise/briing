@@ -44,7 +44,7 @@ const DeliveryDetailsPage = () => {
 
   const proceedToSummary = () => {
     try {
-      setLoading(true);
+      setLoading(true)
 
       // Save delivery details to store
       setDeliveryDetails({

@@ -26,7 +26,7 @@ const ForgotPasswordScreen: React.FC = () => {
 
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), {
-        redirectTo: 'exp://192.168.1.13:8081/--/reset-password', 
+        redirectTo: 'briing://reset-password', 
       });
 
       if (error) throw error;

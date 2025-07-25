@@ -5,7 +5,6 @@ import {
   Switch,
   StyleSheet,
   TouchableOpacity,
-  Alert,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 

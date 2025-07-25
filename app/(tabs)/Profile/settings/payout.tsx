@@ -1,4 +1,3 @@
-import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
 import {
   SafeAreaView,
@@ -11,14 +10,6 @@ import {
 import Toast from 'react-native-toast-message';
 
 const PayoutsHistoryScreen: React.FC = () => {
-  const handleSorting = () => {
-    Alert.alert('Sorting', 'Open sorting options.');
-  };
-
-  const handleFilters = () => {
-    Alert.alert('Filters', 'Open filter options.');
-  };
-
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView style={styles.container}>
@@ -79,6 +70,14 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   controlButton: {
+    paddingVertical: 8,
+    paddingHorizontal: 15,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#CCCCCC',
+    backgroundColor: '#F5F5F5',
+  },
+  filterButton: {
     paddingVertical: 8,
     paddingHorizontal: 15,
     borderRadius: 8,

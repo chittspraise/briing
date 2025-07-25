@@ -1,4 +1,3 @@
-import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React from 'react';
 import {
@@ -12,10 +11,6 @@ import {
 import Toast from 'react-native-toast-message';
 
 const ContentNotFoundScreen: React.FC = () => {
-  const handleOpenInBrowser = () => {
-    Alert.alert('Open in Browser', 'This would open the content in a web browser.');
-  };
-
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.container}>
@@ -50,10 +45,12 @@ const ContentNotFoundScreen: React.FC = () => {
         <Text style={styles.messageDescription}>
           not available in the app. Please proceed to the
         </Text>
-        <Text style={styles.messageDescription}>browser.</Text>
+        <Text style={styles.messageDescription}>
+          browser.
+        </Text>
 
         {/* Open in Browser Button */}
-        <TouchableOpacity onPress={() => Toast.show({ type: 'info', text1: 'Open in Browser', text2: 'This would open the content in a web browser.' })}>
+        <TouchableOpacity style={styles.openBrowserButton} onPress={() => Toast.show({ type: 'info', text1: 'Open in Browser', text2: 'This would open the content in a web browser.' })}>
           <Text style={styles.openBrowserButtonText}>Open in browser</Text>
         </TouchableOpacity>
       </ScrollView>

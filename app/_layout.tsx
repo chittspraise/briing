@@ -8,14 +8,14 @@ import { OrderProvider } from './providers/orderProvider';
 import { TravelProvider } from './providers/travelProvider';
 import { supabase } from '@/supabaseClient';
 import { useEffect, useState } from 'react';
-import { View, Text, ActivityIndicator } from 'react-native';
 import { StripeProvider } from '@stripe/stripe-react-native';
 import * as WebBrowser from 'expo-web-browser';
 import * as Linking from 'expo-linking';
-import Toast, { BaseToast, ErrorToast } from 'react-native-toast-message';
+import Toast, { BaseToast, ErrorToast, BaseToastProps } from 'react-native-toast-message';
+import SplashVideo from '../components/SplashVideo'; // Import the new component
 
 const toastConfig = {
-  success: (props) => (
+  success: (props: BaseToastProps) => (
     <BaseToast
       {...props}
       style={{ borderLeftColor: 'green', backgroundColor: '#121212' }}
@@ -31,7 +31,7 @@ const toastConfig = {
       }}
     />
   ),
-  error: (props) => (
+  error: (props: BaseToastProps) => (
     <ErrorToast
       {...props}
       style={{ borderLeftColor: 'red', backgroundColor: '#121212' }}
@@ -51,57 +51,8 @@ const toastConfig = {
 
 WebBrowser.maybeCompleteAuthSession();
 
-export default function RootLayout() {
+function RootLayoutNav() {
   const colorScheme = useColorScheme();
-  const [loaded] = useFonts({
-    SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
-  });
-
-  const url = Linking.useURL();
-  useEffect(() => {
-    if (url) {
-      const { path, queryParams } = Linking.parse(url);
-      if (path === 'reset-password' && queryParams?.token) {
-        router.replace({
-          pathname: '/reset-password',
-          params: { access_token: queryParams.token, ...queryParams },
-        });
-      }
-    }
-  }, [url]);
-
-  const [sessionLoading, setSessionLoading] = useState(true);
-  const [userSession, setUserSession] = useState<import('@supabase/supabase-js').User | null>(null);
-
-  useEffect(() => {
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUserSession(session);
-      setSessionLoading(false);
-    });
-
-    return () => {
-      listener?.subscription.unsubscribe();
-    };
-  }, []);
-
-  useEffect(() => {
-    if (sessionLoading) return;
-
-    if (userSession) {
-      router.replace('/(tabs)/Home');
-    } else {
-      router.replace('/');
-    }
-  }, [userSession, sessionLoading]);
-
-  if (!loaded || sessionLoading) {
-    return (
-      <View style={{ flex: 1, backgroundColor: '#000', justifyContent: 'center', alignItems: 'center' }}>
-        <ActivityIndicator size="large" color="#fff" />
-        <Text style={{ color: '#fff', marginTop: 10 }}>Loading...</Text>
-      </View>
-    );
-  }
 
   return (
     <StripeProvider
@@ -127,5 +78,66 @@ export default function RootLayout() {
       </OrderProvider>
       <Toast config={toastConfig} />
     </StripeProvider>
+  );
+}
+
+export default function RootLayout() {
+  const [loaded] = useFonts({
+    SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
+  });
+  const [splashFinished, setSplashFinished] = useState(false);
+  const [initialNavigationDone, setInitialNavigationDone] = useState(false);
+
+  const url = Linking.useURL();
+  useEffect(() => {
+    if (url) {
+      const { path, queryParams } = Linking.parse(url);
+      if (path === 'reset-password' && queryParams?.token) {
+        router.replace({
+          pathname: '/reset-password',
+          params: { access_token: queryParams.token, ...queryParams },
+        });
+        setInitialNavigationDone(true);
+      }
+    }
+  }, [url]);
+
+  const [sessionLoading, setSessionLoading] = useState(true);
+  const [userSession, setUserSession] = useState<import('@supabase/supabase-js').User | null>(null);
+
+  useEffect(() => {
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUserSession(session?.user ?? null);
+      setSessionLoading(false);
+    });
+
+    return () => {
+      listener?.subscription.unsubscribe();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (sessionLoading || !splashFinished || initialNavigationDone) return;
+
+    if (userSession) {
+      router.replace('/(tabs)/Home');
+    } else {
+      router.replace('/');
+    }
+    setInitialNavigationDone(true);
+  }, [userSession, sessionLoading, splashFinished, initialNavigationDone]);
+
+  if (!loaded) {
+    return null; // Or a minimal loading indicator
+  }
+
+  return (
+    <>
+      {!splashFinished ? (
+        <SplashVideo onFinish={() => setSplashFinished(true)} />
+      ) : (
+        <RootLayoutNav />
+      )}
+    </>
   );
 }

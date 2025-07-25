@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   SafeAreaView,
   ScrollView,
@@ -10,12 +10,7 @@ import {
 import Toast from 'react-native-toast-message';
 
 const WalletScreen: React.FC = () => {
-  const [balance] = useState('$0.00');
-
-  const handleAddFunds = () => {
-    Alert.alert('Add Funds', 'Navigate to add funds functionality.');
-    // Replace with navigation in real app
-  };
+  const [balance] = useState('ZAR 0.00');
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -31,7 +26,7 @@ const WalletScreen: React.FC = () => {
           <Text style={styles.balanceLabel}>Your balance</Text>
           <View style={styles.balanceRow}>
             <Text style={styles.balanceAmount}>{balance}</Text>
-            <TouchableOpacity style={styles.button} onPress={() => Toast.show({ type: 'info', text1: 'Add Funds', text2: 'Navigate to add funds functionality.' })}>
+            <TouchableOpacity style={styles.addButton} onPress={() => Toast.show({ type: 'info', text1: 'Add Funds', text2: 'Navigate to add funds functionality.' })}>
               <Text style={styles.addButtonText}>+</Text>
             </TouchableOpacity>
           </View>
