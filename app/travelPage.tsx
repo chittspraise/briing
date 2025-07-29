@@ -68,6 +68,7 @@ const TravelBookingPage: React.FC = () => {
       traveler_name: travelerName.trim(),
       is_available: true,
       notes: `Budget: R${budget}`,
+      budget: parseFloat(budget) || 0,
     };
 
     try {
@@ -78,7 +79,19 @@ const TravelBookingPage: React.FC = () => {
         return;
       }
 
-      setTravel(travelInfo);
+      const { user_id, ...travelDetails } = travelInfo;
+
+      setTravel({
+        ...travelDetails,
+        return_date: travelDetails.return_date || '',
+        from_country: travelDetails.from_country || '',
+        to_country: travelDetails.to_country || '',
+        departure_date: travelDetails.departure_date || '',
+        traveler_name: travelDetails.traveler_name || '',
+        is_available: travelDetails.is_available ?? true,
+        notes: travelDetails.notes || '',
+        budget: travelDetails.budget || 0,
+      });
       Toast.show({ type: 'success', text1: 'Success', text2: 'Trip saved successfully!' });
       navigation.navigate('(tabs)', { screen: 'home' });
     } catch (e) {
@@ -90,101 +103,109 @@ const TravelBookingPage: React.FC = () => {
   };
 
   return (
-    <ScrollView style={styles.container}>
+    <ScrollView
+      style={styles.scrollView}
+      contentContainerStyle={styles.container}
+    >
       <Image
-        source={require('@/assets/images/OIP.jpeg')} // replace with your actual image
+        source={require('@/assets/images/Voyage avec sourire dans l’aéroport.png')}
         style={styles.bannerImage}
       />
 
-      <Text style={styles.title}>Add Travel</Text>
+      <View style={styles.formContainer}>
+        <Text style={styles.title}>Add Travel</Text>
+        <Text style={styles.subtitle}>
+          Travelling soon? Help shoppers around the globe to deliver their products for a worthy reward.
+        </Text>
 
-      <TextInput
-        style={styles.input}
-        placeholder="Your Name"
-        value={travelerName}
-        onChangeText={setTravelerName}
-        editable={!loading}
-      />
-
-      <TextInput
-        style={styles.input}
-        placeholder="From"
-        value={from}
-        onChangeText={setFrom}
-        editable={!loading}
-      />
-
-      <TextInput
-        style={styles.input}
-        placeholder="To"
-        value={to}
-        onChangeText={setTo}
-        editable={!loading}
-      />
-
-      <View style={styles.tripTypeTabs}>
-        {['One way', 'Round trip'].map((type) => (
-          <TouchableOpacity
-            key={type}
-            style={[styles.tripTypeTab, tripType === type && styles.activeTab]}
-            onPress={() => setTripType(type as 'One way' | 'Round trip')}
-            disabled={loading}
-          >
-            <Text style={tripType === type ? styles.activeTabText : styles.tabText}>{type}</Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-
-      <TouchableOpacity onPress={() => !loading && setShowCalendar('depart')}>
         <TextInput
           style={styles.input}
-          placeholder="Departure Date"
-          value={departureDate}
-          editable={false}
-          pointerEvents="none"
+          placeholder="Your Name"
+          value={travelerName}
+          onChangeText={setTravelerName}
+          editable={!loading}
         />
-      </TouchableOpacity>
 
-      {tripType === 'Round trip' && (
-        <TouchableOpacity onPress={() => !loading && setShowCalendar('return')}>
+        <TextInput
+          style={styles.input}
+          placeholder="From"
+          value={from}
+          onChangeText={setFrom}
+          editable={!loading}
+        />
+
+        <TextInput
+          style={styles.input}
+          placeholder="To"
+          value={to}
+          onChangeText={setTo}
+          editable={!loading}
+        />
+
+        <View style={styles.tripTypeTabs}>
+          {['One way', 'Round trip'].map((type) => (
+            <TouchableOpacity
+              key={type}
+              style={[styles.tripTypeTab, tripType === type && styles.activeTab]}
+              onPress={() => setTripType(type as 'One way' | 'Round trip')}
+              disabled={loading}
+            >
+              <Text style={tripType === type ? styles.activeTabText : styles.tabText}>{type}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        <TouchableOpacity onPress={() => !loading && setShowCalendar('depart')}>
           <TextInput
             style={styles.input}
-            placeholder="Return Date"
-            value={returnDate}
+            placeholder="Departure Date"
+            value={departureDate}
             editable={false}
             pointerEvents="none"
           />
         </TouchableOpacity>
-      )}
 
-      {showCalendar && (
-        <Calendar
-          onDayPress={handleDayPress}
-          markedDates={{
-            [departureDate]: { selected: true, selectedColor: '#000' },
-            ...(tripType === 'Round trip' && returnDate
-              ? { [returnDate]: { selected: true, selectedColor: '#555' } }
-              : {}),
-          }}
+        {tripType === 'Round trip' && (
+          <TouchableOpacity onPress={() => !loading && setShowCalendar('return')}>
+            <TextInput
+              style={styles.input}
+              placeholder="Return Date"
+              value={returnDate}
+              editable={false}
+              pointerEvents="none"
+            />
+          </TouchableOpacity>
+        )}
+
+        {showCalendar && (
+          <Calendar
+            onDayPress={handleDayPress}
+            markedDates={{
+              [departureDate]: { selected: true, selectedColor: '#000' },
+              ...(tripType === 'Round trip' && returnDate
+                ? { [returnDate]: { selected: true, selectedColor: '#555' } }
+                : {}),
+            }}
+          />
+        )}
+
+        <TextInput
+          style={styles.input}
+          placeholder="Your budget (Rands)"
+          value={budget}
+          onChangeText={setBudget}
+          keyboardType="numeric"
+          editable={!loading}
         />
-      )}
 
-      <TextInput
-        style={styles.input}
-        placeholder="Your budget (Rands)"
-        value={budget}
-        onChangeText={setBudget}
-        keyboardType="numeric"
-        editable={!loading}
-      />
-
-      <TouchableOpacity
-        style={[styles.button, loading && { opacity: 0.6 }]}
-        onPress={addTrip}
-        disabled={loading}
-      >
-        <Text style={styles.buttonText}>{loading ? 'Saving...' : 'Add Trip'}</Text>
-      </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.button, loading && { opacity: 0.6 }]}
+          onPress={addTrip}
+          disabled={loading}
+        >
+          <Text style={styles.buttonText}>{loading ? 'Saving...' : 'Add Trip'}</Text>
+        </TouchableOpacity>
+      </View>
     </ScrollView>
   );
 };
@@ -192,23 +213,32 @@ const TravelBookingPage: React.FC = () => {
 export default TravelBookingPage;
 
 const styles = StyleSheet.create({
-  container: {
-    padding: 20,
+  scrollView: {
     backgroundColor: '#fff',
+  },
+  container: {
     flexGrow: 1,
+  },
+  formContainer: {
+    padding: 20,
   },
   bannerImage: {
     width: '100%',
-    height: 200,
-    resizeMode: 'contain',
-    borderRadius: 12,
-    marginBottom: 20,
+    height: 400,
+    resizeMode: 'cover',
   },
   title: {
     fontSize: 22,
     fontWeight: 'bold',
-    marginBottom: 20,
+    marginBottom: 10,
     color: '#000',
+    textAlign: 'center',
+  },
+  subtitle: {
+    fontSize: 16,
+    color: '#666',
+    textAlign: 'center',
+    marginBottom: 20,
   },
   input: {
     borderWidth: 1,

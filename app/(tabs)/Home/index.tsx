@@ -125,6 +125,7 @@ const HomeScreen: React.FC = () => {
         user_id,
         store
       `)
+      .eq('status', 'pending')
       .order('created_at', { ascending: false });
 
     if (ordersError) {
@@ -241,7 +242,7 @@ const HomeScreen: React.FC = () => {
             onPress={() => router.push('/travelPage')}
           >
             <Image
-              source={require('../../../assets/images/Screenshot 2025-07-20 230656.png')}
+              source={require('../../../assets/images/ChatGPT Image Jul 26, 2025, 09_31_10 AM.png')}
               style={styles.travelImage}
             />
             <View style={styles.travelOverlay}>

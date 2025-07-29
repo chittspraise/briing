@@ -10,6 +10,7 @@ type Travel = {
   traveler_name: string;
   is_available: boolean;
   notes: string;
+  budget: number;
 };
 
 type TravelContextType = {

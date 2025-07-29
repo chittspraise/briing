@@ -91,7 +91,7 @@ const ConfirmOrder = () => {
     }
 
     const travelerId = userData.user.id;
-    const total = parseFloat(order.price) + parseFloat(order.vat_estimate);
+    const total = order.estimated_total;
 
     const { error: insertError } = await supabase.from('confirmed_orders').insert([
       {
@@ -128,16 +128,18 @@ const ConfirmOrder = () => {
       .eq('id', order.id);
 
     if (updateError) {
-      Toast.show({ type: 'error', text1: 'Update Error', text2: 'Order confirmed, but failed to update status.' });
+      Toast.show({ type: 'error', text1: 'Database Error', text2: 'Failed to update order status.' });
       console.error(updateError);
-    } else {
-      Toast.show({
-        type: 'success',
-        text1: 'Order Confirmed!',
-        text2: 'You can now track the order in your "My Orders" section.',
-      });
-      router.replace('/(tabs)/Home');
+      // Optionally, you might want to roll back the insertion into confirmed_orders
+      return;
     }
+
+    Toast.show({
+      type: 'success',
+      text1: 'Order Confirmed!',
+      text2: 'You can now track the order in your "My Orders" section.',
+    });
+    router.replace('/(tabs)/Orders/my_orders');
   };
 
   if (loading || !order) {
@@ -159,7 +161,7 @@ const ConfirmOrder = () => {
         )}
 
         <Text style={styles.label}>Product:</Text>
-        <Text style={styles.value}>{order.item_name}</Text>
+        <Text style={styles.value}>{order.item_name} (x{order.quantity})</Text>
 
         {order.store?.trim() !== '' && (
           <>

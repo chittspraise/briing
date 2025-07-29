@@ -23,10 +23,6 @@ const NotificationsScreen: React.FC = () => {
 
   return (
     <View style={styles.container}>
-      <TouchableOpacity onPress={() => router.back()}>
-        <Text style={styles.backButton}>{'< Back'}</Text>
-      </TouchableOpacity>
-
       <Text style={styles.title}>Notification Settings</Text>
 
       <View style={styles.notificationItem}>

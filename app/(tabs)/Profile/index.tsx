@@ -77,9 +77,9 @@ const ProfileScreen = () => {
       <View style={styles.profileBanner}>
         <Image
           style={styles.avatar}
-          source={{ uri: 'https://placehold.co/100x100/000000/FFFFFF?text=PC' }}
+          source={{ uri: 'https://picsum.photos/100' }}
         />
-        <View>
+        <View style={styles.profileInfo}>
           <Text style={styles.name}>
             {firstName || lastName ? `${firstName} ${lastName}` : 'Loading...'}
           </Text>
@@ -87,6 +87,12 @@ const ProfileScreen = () => {
             <Text style={styles.editProfile}>Edit profile</Text>
           </TouchableOpacity>
         </View>
+        <TouchableOpacity
+          style={styles.walletIcon}
+          onPress={() => router.push('/(tabs)/Profile/settings/wallet')}
+        >
+          <Ionicons name="wallet-outline" size={28} color="#fff" />
+        </TouchableOpacity>
       </View>
 
       {/* Section: Account */}
@@ -182,6 +188,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     marginRight: 16,
   },
+  profileInfo: {
+    flex: 1,
+  },
   name: {
     fontSize: 22,
     fontWeight: '700',
@@ -191,6 +200,9 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginTop: 4,
     color: '#fff',
+  },
+  walletIcon: {
+    padding: 10,
   },
   section: {
     marginHorizontal: 16,

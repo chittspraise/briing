@@ -36,6 +36,12 @@ export default function SummaryPage() {
 
   const [travelerReward, setTravelerReward] = useState('');
   const [userId, setUserId] = useState<string | null>(null);
+  const [displayQuantity, setDisplayQuantity] = useState(parseInt(quantity || '1', 10));
+
+  const handleQuantityChange = (amount: number) => {
+    const newQuantity = Math.max(1, displayQuantity + amount);
+    setDisplayQuantity(newQuantity);
+  };
 
   // Get current user ID from Supabase on mount
   useEffect(() => {
@@ -49,9 +55,9 @@ export default function SummaryPage() {
   }, []);
 
   // Calculate fees and totals
-  const numericPrice = parseFloat(price || '0') || 0;
-  const platformFee = Math.round(numericPrice * 0.15 * 100) / 100;
-  const processingFee = Math.round(numericPrice * 0.15 * 100) / 100;
+  const numericPrice = (parseFloat(price || '0') || 0) * displayQuantity;
+  const platformFee = Math.round(numericPrice * 0.05 * 100) / 100;
+  const processingFee = Math.round(numericPrice * 0.05 * 100) / 100;
   const vatEstimate = Math.round(numericPrice * 0.15 * 100) / 100;
   const reward = parseFloat(travelerReward || '0') || 0;
   const estimatedTotal = numericPrice + platformFee + processingFee + vatEstimate + reward;
@@ -67,7 +73,7 @@ export default function SummaryPage() {
       item_name,
       store: store || null,
       price: numericPrice,
-      quantity: parseInt(quantity || '1', 10),
+      quantity: displayQuantity,
       details,
       with_box,
       image_url,
@@ -158,7 +164,15 @@ export default function SummaryPage() {
           <Text style={styles.label}>Order details</Text>
           <View style={styles.detailRow}>
             <Text style={styles.subLabel}>Quantity</Text>
-            <Text style={styles.value}>{quantity || 'N/A'}</Text>
+            <View style={styles.quantityContainer}>
+              <TouchableOpacity onPress={() => handleQuantityChange(-1)}>
+                <AntDesign name="minuscircleo" size={24} color="green" />
+              </TouchableOpacity>
+              <Text style={styles.quantityText}>{displayQuantity}</Text>
+              <TouchableOpacity onPress={() => handleQuantityChange(1)}>
+                <AntDesign name="pluscircleo" size={24} color="green" />
+              </TouchableOpacity>
+            </View>
           </View>
           <View style={styles.detailRow}>
             <Text style={styles.subLabel}>Packaging</Text>
@@ -195,7 +209,7 @@ export default function SummaryPage() {
         <View style={styles.section}>
           <Text style={styles.label}>Cost breakdown</Text>
           {[
-            { label: 'Product price', value: `ZAR${numericPrice.toFixed(2)}` },
+            { label: `Product price (x${displayQuantity})`, value: `ZAR${numericPrice.toFixed(2)}` },
             { label: 'VAT (estimated)', value: `ZAR${vatEstimate.toFixed(2)}` },
             { label: 'Platform fee', value: `ZAR${platformFee.toFixed(2)}` },
             { label: 'Processing fee', value: `ZAR${processingFee.toFixed(2)}` },
@@ -305,6 +319,16 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     color: '#000',
     fontSize: 14,
+  },
+  quantityContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  quantityText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginHorizontal: 15,
+    color: 'green',
   },
   footer: {
     paddingHorizontal: 20,

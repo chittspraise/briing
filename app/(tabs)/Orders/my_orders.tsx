@@ -20,8 +20,12 @@ type Order = {
   item_name: string;
   store: string;
   price: number;
+  quantity: number;
   vat_estimate: number;
   traveler_reward: number;
+  estimated_total: number;
+  platform_fee: number;
+  processing_fee: number;
   image_url?: string;
   created_at: string;
   status: string;
@@ -38,7 +42,7 @@ type Order = {
   time: string;
 };
 
-const STATUS_CHAIN = ['pending', 'accepted', 'paid', 'purchased', 'intransit', 'delivered', 'received', 'declined'];
+const STATUS_CHAIN = ['pending', 'accepted', 'paid', 'purchased', 'intransit', 'delivered', 'received'];
 const renderStars = (rating: number) =>
   '★'.repeat(Math.floor(rating)) + '☆'.repeat(5 - Math.floor(rating));
 
@@ -75,23 +79,21 @@ const MyOrdersPage = () => {
     const { data: profiles } = await supabase.from('profiles').select('id, first_name, image_url');
     const profileMap = new Map((profiles || []).map(p => [p.id, p]));
 
-    // Key change: include orders where traveler_id === currentUserId
     const filteredOrders = (productOrders || []).filter(order => {
       const confirmed = confirmedOrders?.find(co => co.order_id === order.id);
+      const isDeclined = order.status === 'declined' || confirmed?.status === 'declined';
+      const isCancelled = order.status === 'cancelled';
 
-      // Check if the current user is the assigned traveler and has declined the order
-      const isDirectlyDeclinedByTraveler = order.traveler_id === userId && order.status === 'declined';
-
-      // Check if the order was accepted by this traveler and then declined (via confirmed_orders)
-      const isConfirmedDeclinedByTraveler = confirmed?.traveler_id === userId && confirmed?.status === 'declined';
-
+      // Exclude orders that are declined or cancelled by the current user
+      if ((isDeclined || isCancelled) && (order.traveler_id === userId || confirmed?.traveler_id === userId)) {
+        return false;
+      }
+      
       return (
-        !isDirectlyDeclinedByTraveler &&
-        !isConfirmedDeclinedByTraveler &&
-        (order.user_id === userId ||
+        order.user_id === userId ||
         confirmed?.shopper_id === userId ||
         confirmed?.traveler_id === userId ||
-        order.traveler_id === userId)
+        order.traveler_id === userId
       );
     });
 
@@ -102,7 +104,7 @@ const MyOrdersPage = () => {
         ...order,
         confirmed_id: confirmed?.id,
         shopper_id: confirmed?.shopper_id,
-        traveler_id: confirmed?.traveler_id || order.traveler_id, // fallback to product_orders.traveler_id
+        traveler_id: confirmed?.traveler_id || order.traveler_id,
         first_name: profile?.first_name || 'Unknown',
         avatar: profile?.image_url,
         rating: 4,
@@ -119,22 +121,107 @@ const MyOrdersPage = () => {
   };
 
   const updateStatus = async (order: Order, newStatus: string) => {
+    const currentIndex = STATUS_CHAIN.indexOf(order.status);
+    const newIndex = STATUS_CHAIN.indexOf(newStatus);
+
+    if (newStatus !== 'cancel' && newIndex <= currentIndex) {
+      Toast.show({ type: 'error', text1: 'Invalid Status Update', text2: 'You cannot go back in status.' });
+      return;
+    }
+    if (newStatus === 'received' && order.status !== 'delivered') {
+      Toast.show({ type: 'error', text1: 'Invalid Status Update', text2: 'Order must be delivered to be received.' });
+      return;
+    }
+
     if (newStatus === 'accepted') {
       router.push({ pathname: '/(tabs)/Orders/confirm/[confirmOrder]', params: { confirmOrder: order.id.toString() } });
-    } else {
-      const results = await Promise.all([
-        supabase.from('product_orders').update({ status: newStatus }).eq('id', order.id),
-        order.confirmed_id
-          ? supabase.from('confirmed_orders').update({ status: newStatus }).eq('id', order.confirmed_id)
-          : Promise.resolve({ error: null }),
-      ]);
-      if (results.some(r => r.error)) Toast.show({ type: 'error', text1: 'Error', text2: 'Status update failed.' });
-      else fetchOrders(currentUserId!);
+      return;
+    }
+
+    try {
+      const { error: productOrderError } = await supabase.from('product_orders').update({ status: newStatus }).eq('id', order.id);
+      if (productOrderError) throw new Error(`Failed to update product order: ${productOrderError.message}`);
+
+      if (order.confirmed_id) {
+        const { error: confirmedOrderError } = await supabase.from('confirmed_orders').update({ status: newStatus }).eq('id', order.confirmed_id);
+        if (confirmedOrderError) throw new Error(`Failed to update confirmed order: ${confirmedOrderError.message}`);
+      }
+
+      Toast.show({ type: 'success', text1: 'Success', text2: 'Status updated successfully.' });
+
+      if (newStatus === 'received' && order.traveler_id) {
+        const {
+          price: itemPrice,
+          vat_estimate,
+          traveler_reward,
+          estimated_total,
+          platform_fee,
+          processing_fee
+        } = order;
+
+        // Fee is 10% of the total checkout amount paid by the shopper.
+        const platformFeeForTraveler = estimated_total * 0.10;
+        
+        // The traveler's gross earning.
+        const travelerGross = itemPrice + traveler_reward;
+
+        // The final amount credited to the traveler's wallet.
+        const payoutAmount = travelerGross - platformFeeForTraveler;
+
+        const { data: profile, error: profileError } = await supabase
+          .from('profiles')
+          .select('wallet_balance')
+          .eq('id', order.traveler_id)
+          .single();
+        if (profileError) throw new Error(`Failed to fetch traveler profile: ${profileError.message}`);
+        if (!profile) throw new Error(`Traveler profile not found for id: ${order.traveler_id}`);
+        
+        const newBalance = (profile.wallet_balance || 0) + payoutAmount;
+
+        const { error: updateError } = await supabase
+          .from('profiles')
+          .update({ wallet_balance: newBalance })
+          .eq('id', order.traveler_id);
+        if (updateError) throw new Error(`Failed to update traveler wallet: ${updateError.message}`);
+        
+        const transactionDescription = `Shopper Checkout Breakdown:\n` +
+          `Item Price: ZAR ${itemPrice.toFixed(2)}\n` +
+          `VAT (Est.): ZAR ${vat_estimate.toFixed(2)}\n` +
+          `Platform Fee: ZAR ${platform_fee.toFixed(2)}\n` +
+          `Processing Fee: ZAR ${processing_fee.toFixed(2)}\n` +
+          `Traveler Reward: ZAR ${traveler_reward.toFixed(2)}\n` +
+          `--------------------\n` +
+          `Total Checkout: ZAR ${estimated_total.toFixed(2)}\n\n` +
+          `Your Payout:\n` +
+          `Platform Fee @ 10% of Total: -ZAR ${platformFeeForTraveler.toFixed(2)}\n` +
+          `Net Amount Credited: ZAR ${payoutAmount.toFixed(2)}`;
+        
+        const { error: transactionError } = await supabase
+          .from('wallet_transactions')
+          .insert([{
+            user_id: order.traveler_id,
+            amount: payoutAmount,
+            type: 'reward',
+            description: transactionDescription,
+            source: `order_${order.id}`,
+          }]);
+        if (transactionError) throw new Error(`Failed to create transaction record: ${transactionError.message}`);
+
+        Toast.show({ type: 'success', text1: 'Traveler Credited', text2: `ZAR ${payoutAmount.toFixed(2)} has been paid.` });
+      }
+
+    } catch (e: any) {
+      console.error('Error during status update process:', e);
+      Toast.show({ type: 'error', text1: 'Error', text2: e.message || 'An unexpected error occurred.' });
+    } finally {
+      if (currentUserId) {
+        fetchOrders(currentUserId);
+      }
     }
   };
 
   const handleCheckout = async (order: Order) => {
-    const total = parseFloat((order.price + order.vat_estimate + order.traveler_reward).toFixed(2));
+    const total = order.estimated_total;
     try {
       await setupStripePaymentSheet(total);
       await openStripeCheckout();
@@ -168,15 +255,25 @@ const MyOrdersPage = () => {
     const shopperConfirmed = item.shopper_id === currentUserId;
     const isCreator = item.user_id === currentUserId;
     const travelerConfirmed = item.traveler_id === currentUserId;
-    let statusOptions: string[] = [];
-
-    if (item.status === 'pending' && isCreator) statusOptions = ['cancel'];
-    else if (item.status === 'pending' && !isCreator) statusOptions = ['accepted'];
-    else if (travelerConfirmed) statusOptions = ['purchased', 'intransit', 'delivered', 'cancel'];
-    else if (shopperConfirmed || (isCreator && item.status === 'accepted')) statusOptions = ['received', 'cancel'];
-
     const currentIndex = STATUS_CHAIN.indexOf(item.status);
-    const nextStatus = currentIndex !== -1 && currentIndex < STATUS_CHAIN.length - 2 ? STATUS_CHAIN[currentIndex + 1] : null;
+    const nextStatus = currentIndex !== -1 && currentIndex < STATUS_CHAIN.length - 1 ? STATUS_CHAIN[currentIndex + 1] : null;
+
+    let statusOptions: string[] = [];
+    if (item.status !== 'declined' && item.status !== 'received') {
+      if (nextStatus) {
+        if (
+          (item.status === 'pending' && !isCreator) ||
+          (item.status === 'accepted' && isCreator) ||
+          (item.status === 'paid' && travelerConfirmed) ||
+          (item.status === 'purchased' && travelerConfirmed) ||
+          (item.status === 'intransit' && travelerConfirmed) ||
+          (item.status === 'delivered' && (shopperConfirmed || isCreator))
+        ) {
+          statusOptions.push(nextStatus);
+        }
+      }
+      statusOptions.push('cancel');
+    }
 
     return (
       <View style={styles.card}>
@@ -186,11 +283,11 @@ const MyOrdersPage = () => {
             <TouchableOpacity style={styles.checkoutButton} onPress={() => handleCheckout(item)}>
               <Text style={styles.checkoutText}>Checkout</Text>
             </TouchableOpacity>
-          ) : nextStatus ? (
+          ) : (
             <View style={[styles.checkoutButton, styles.disabledButton]}>
-              <Text style={styles.checkoutText}>{nextStatus}</Text>
+              <Text style={styles.checkoutText}>{nextStatus || 'Completed'}</Text>
             </View>
-          ) : null}
+          )}
         </View>
         {renderStatusBar(item.status)}
 
@@ -214,12 +311,7 @@ const MyOrdersPage = () => {
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.actionButton, styles.acceptButton]}
-              onPress={() => {
-                router.push({
-                  pathname: '/(tabs)/Orders/confirm/[confirmOrder]',
-                  params: { confirmOrder: item.id.toString() },
-                });
-              }}
+              onPress={() => updateStatus(item, 'accepted')}
             >
               <Text style={styles.actionButtonText}>Accept</Text>
             </TouchableOpacity>
@@ -254,7 +346,10 @@ const MyOrdersPage = () => {
             ))}
           </View>
         )}
-        <Text style={styles.productName}>{item.item_name}</Text>
+        <View style={styles.productNameContainer}>
+          <Text style={styles.productName}>{item.item_name}</Text>
+          <Text style={styles.quantityText}> (x{item.quantity})</Text>
+        </View>
         {item.images.length > 0 && (
           <FlatList
             horizontal
@@ -265,9 +360,16 @@ const MyOrdersPage = () => {
         )}
         <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8 }}>
           <Text style={styles.rewardLabel}>Reward: </Text>
-          <Text style={styles.price}>R{item.traveler_reward}</Text>
+          <Text style={styles.price}>R{item.traveler_reward.toFixed(2)}</Text>
         </View>
-        <Text style={styles.productDetail}>Price: R{item.price} + Tax: R{item.vat_estimate}</Text>
+        <Text style={styles.productDetail}>Price: R{item.price.toFixed(2)}</Text>
+        <Text style={styles.productDetail}>VAT (Est.): R{item.vat_estimate.toFixed(2)}</Text>
+        <Text style={styles.productDetail}>Platform Fee: R{(item.price * 0.05).toFixed(2)}</Text>
+        <Text style={styles.productDetail}>Processing Fee: R{(item.price * 0.05).toFixed(2)}</Text>
+        <View style={styles.totalContainer}>
+          <Text style={styles.totalLabel}>Total:</Text>
+          <Text style={styles.totalAmount}>R{item.estimated_total.toFixed(2)}</Text>
+        </View>
         <Text style={styles.label}>Store:</Text>
         <Text style={styles.value}>{item.store}</Text>
         <View style={styles.infoBox}>
@@ -358,10 +460,20 @@ const styles = StyleSheet.create({
     color: '#fff',
     paddingVertical: 6,
   },
+  productNameContainer: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    marginBottom: 8,
+  },
   productName: {
     color: '#fff',
     fontSize: 16,
-    marginBottom: 8,
+    flex: 1,
+  },
+  quantityText: {
+    color: 'green',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
   productImage: {
     width: 120,
@@ -381,6 +493,25 @@ const styles = StyleSheet.create({
   },
   productDetail: {
     color: '#ccc',
+    marginBottom: 4,
+  },
+  totalContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 8,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#333',
+  },
+  totalLabel: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 18,
+  },
+  totalAmount: {
+    color: 'green',
+    fontWeight: 'bold',
+    fontSize: 18,
   },
   infoBox: {
     marginTop: 12,

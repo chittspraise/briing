@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import {
   Alert,
+  Image,
   SafeAreaView,
   ScrollView,
   StyleSheet,
@@ -10,8 +11,11 @@ import {
 } from 'react-native';
 import Toast from 'react-native-toast-message';
 import { Picker } from '@react-native-picker/picker';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 
 const PayoutMethodScreen: React.FC = () => {
+  const router = useRouter();
+  const { cashOutAmount } = useLocalSearchParams();
   const [selectedCountry, setSelectedCountry] = useState('South Africa');
   const [selectedPayoutOption, setSelectedPayoutOption] = useState<'fnb_account' | 'other_sa_bank_account' | null>(null);
 
@@ -20,17 +24,19 @@ const PayoutMethodScreen: React.FC = () => {
       Toast.show({ type: 'error', text1: 'Selection Required', text2: 'Please select a payout method to continue.' });
       return;
     }
-    Alert.alert(
-      'Continue',
-      `Selected Payout Method: ${
-        selectedPayoutOption === 'fnb_account' ? 'FNB Account' : 'Other South African Bank Account'
-      }`
-    );
+    router.push({
+      pathname: './paymentDetails',
+      params: { payoutOption: selectedPayoutOption, cashOutAmount },
+    });
   };
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.container}>
+        <Image
+          source={require('../../../../assets/images/paymentmthd.jpg')}
+          style={styles.bannerImage}
+        />
         {/* Removed manual header and back button */}
 
         {/* Country Picker */}
@@ -115,6 +121,12 @@ const styles = StyleSheet.create({
   container: {
     padding: 20,
     paddingBottom: 40,
+  },
+  bannerImage: {
+    width: '100%',
+    height: 150,
+    borderRadius: 10,
+    marginBottom: 20,
   },
   section: {
     marginBottom: 25,

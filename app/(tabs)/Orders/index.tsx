@@ -19,6 +19,7 @@ type OrderRequest = {
   price: number;
   vat_estimate: number;
   item_name: string;
+  quantity: number;
   destination: string | null;
   source_country: string | null;
   wait_time: string | null;
@@ -86,6 +87,7 @@ const OrderPage = () => {
         price,
         vat_estimate,
         item_name,
+        quantity,
         destination,
         source_country,
         wait_time,
@@ -93,6 +95,7 @@ const OrderPage = () => {
         user_id,
         store
       `)
+      .eq('status', 'pending')
       .order('created_at', { ascending: false });
 
     if (ordersError) {
@@ -269,7 +272,10 @@ const OrderPage = () => {
                 </View>
               </View>
 
-              <Text style={styles.productName}>{item.item_name}</Text>
+              <View style={styles.productNameContainer}>
+                <Text style={styles.productName}>{item.item_name}</Text>
+                <Text style={styles.quantityText}> (x{item.quantity})</Text>
+              </View>
 
               {item.images.length > 0 && (
                 <FlatList
@@ -442,11 +448,20 @@ const styles = StyleSheet.create({
     color: '#888',
     fontSize: 12,
   },
+  productNameContainer: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    marginBottom: 10,
+  },
   productName: {
     fontSize: 16,
     fontWeight: 'bold',
     color: '#fff',
-    marginBottom: 10,
+  },
+  quantityText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: 'green',
   },
   productImage: {
     width: 140,

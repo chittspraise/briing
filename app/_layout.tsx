@@ -6,7 +6,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { OrderProvider } from './providers/orderProvider';
 import { TravelProvider } from './providers/travelProvider';
-import { supabase } from '@/supabaseClient';
+import { AuthProvider, useAuth } from './providers/authProvider'; // Import AuthProvider and useAuth
 import { useEffect, useState } from 'react';
 import { StripeProvider } from '@stripe/stripe-react-native';
 import * as WebBrowser from 'expo-web-browser';
@@ -53,6 +53,19 @@ WebBrowser.maybeCompleteAuthSession();
 
 function RootLayoutNav() {
   const colorScheme = useColorScheme();
+  const { session, loading } = useAuth();
+  const [navigated, setNavigated] = useState(false);
+
+  useEffect(() => {
+    if (!loading && !navigated) {
+      if (session) {
+        router.replace('/(tabs)/Home');
+      } else {
+        router.replace('/');
+      }
+      setNavigated(true);
+    }
+  }, [session, loading, navigated]);
 
   return (
     <StripeProvider
@@ -86,7 +99,6 @@ export default function RootLayout() {
     SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
   });
   const [splashFinished, setSplashFinished] = useState(false);
-  const [initialNavigationDone, setInitialNavigationDone] = useState(false);
 
   const url = Linking.useURL();
   useEffect(() => {
@@ -97,47 +109,22 @@ export default function RootLayout() {
           pathname: '/reset-password',
           params: { access_token: queryParams.token, ...queryParams },
         });
-        setInitialNavigationDone(true);
       }
     }
   }, [url]);
-
-  const [sessionLoading, setSessionLoading] = useState(true);
-  const [userSession, setUserSession] = useState<import('@supabase/supabase-js').User | null>(null);
-
-  useEffect(() => {
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUserSession(session?.user ?? null);
-      setSessionLoading(false);
-    });
-
-    return () => {
-      listener?.subscription.unsubscribe();
-    };
-  }, []);
-
-  useEffect(() => {
-    if (sessionLoading || !splashFinished || initialNavigationDone) return;
-
-    if (userSession) {
-      router.replace('/(tabs)/Home');
-    } else {
-      router.replace('/');
-    }
-    setInitialNavigationDone(true);
-  }, [userSession, sessionLoading, splashFinished, initialNavigationDone]);
 
   if (!loaded) {
     return null; // Or a minimal loading indicator
   }
 
   return (
-    <>
+    <AuthProvider>
       {!splashFinished ? (
         <SplashVideo onFinish={() => setSplashFinished(true)} />
       ) : (
         <RootLayoutNav />
       )}
-    </>
+    </AuthProvider>
   );
 }
+

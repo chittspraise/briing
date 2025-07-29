@@ -80,7 +80,12 @@ const MessagesPage = () => {
         })
       }
     >
-      <Image source={{ uri: item.avatar || 'https://via.placeholder.com/50' }} style={styles.avatar} />
+      <Image
+        source={{
+          uri: item.avatar || `https://picsum.photos/seed/${item.other_user_id}/50`,
+        }}
+        style={styles.avatar}
+      />
       <View style={styles.textContent}>
         <Text style={styles.name}>{item.name}</Text>
         <Text style={styles.messagePreview} numberOfLines={1}>
@@ -89,7 +94,10 @@ const MessagesPage = () => {
       </View>
       <View style={styles.metaContent}>
         <Text style={styles.time}>
-          {new Date(item.updated_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+          {new Date(item.updated_at).toLocaleTimeString([], {
+            hour: '2-digit',
+            minute: '2-digit',
+          })}
         </Text>
         {item.unread_count > 0 && (
           <View style={styles.unreadBadge}>

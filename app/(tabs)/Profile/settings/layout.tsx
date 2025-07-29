@@ -14,6 +14,7 @@ export default function SettingsLayout() {
       <Stack.Screen name="notifications" options={{ title: 'Notifications' }} />
       <Stack.Screen name="passwordReset" options={{ title: 'Reset Password' }} />
       <Stack.Screen name="payment" options={{ title: 'Payment' }} />
+      <Stack.Screen name="paymentDetails" options={{ title: 'Payment Details' }} />
       <Stack.Screen name="payout" options={{ title: 'Payout' }} />
       <Stack.Screen name="wallet" options={{ title: 'Wallet' }} />
     </Stack>
