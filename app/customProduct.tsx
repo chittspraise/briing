@@ -122,7 +122,7 @@ const CustomProduct = () => {
       <Text style={styles.label}>Price</Text>
       <TextInput
         style={styles.input}
-        placeholder="$0.00"
+        placeholder="ZAR 0.00"
         placeholderTextColor="#888"
         keyboardType="numeric"
         value={price}

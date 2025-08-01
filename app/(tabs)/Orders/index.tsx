@@ -31,6 +31,7 @@ type OrderRequest = {
   rating: number;
   images: string[];
   time: string;
+  details: string | null;
 };
 
 const renderStars = (rating: number) => {
@@ -93,7 +94,8 @@ const OrderPage = () => {
         wait_time,
         image_url,
         user_id,
-        store
+        store,
+        details
       `)
       .eq('status', 'pending')
       .order('created_at', { ascending: false });
@@ -127,12 +129,37 @@ const OrderPage = () => {
       return;
     }
 
+    const { data: ratingsData, error: ratingsError } = await supabase
+      .from('ratings')
+      .select('rated_id, rating')
+      .in('rated_id', userIds);
+
+    if (ratingsError) {
+      console.error('Fetch ratings error:', ratingsError);
+      // We can continue without ratings if this fails
+    }
+
+    const ratingsMap = new Map<string, { total: number; count: number }>();
+    if (ratingsData) {
+      for (const rating of ratingsData) {
+        if (!ratingsMap.has(rating.rated_id)) {
+          ratingsMap.set(rating.rated_id, { total: 0, count: 0 });
+        }
+        const current = ratingsMap.get(rating.rated_id)!;
+        current.total += rating.rating;
+        current.count += 1;
+      }
+    }
+
     const profilesMap = new Map(
       (profilesData ?? []).map((p) => [p.id, p])
     );
 
     const mappedOrders = ordersData.map((order) => {
       const profile = profilesMap.get(order.user_id);
+      const userRating = ratingsMap.get(order.user_id);
+      const avgRating = userRating ? userRating.total / userRating.count : 5;
+
       return {
         ...order,
         first_name: profile?.first_name ?? 'Anonymous User',
@@ -140,7 +167,7 @@ const OrderPage = () => {
           profile?.image_url && profile.image_url.trim() !== ''
             ? profile.image_url
             : 'https://randomuser.me/api/portraits/lego/1.jpg',
-        rating: 4,
+        rating: avgRating,
         images:
           order.image_url && order.image_url.trim() !== ''
             ? [order.image_url.trim()]
@@ -304,11 +331,13 @@ const OrderPage = () => {
                 onPress={() => {
                   if (!currentUserId) return alert('Please log in to chat.');
                   router.push({
-                    pathname: '/Orders/[chatId]',
+                    pathname: '/(tabs)/Messages/[chatId]',
                     params: {
                       chatId,
                       receiverId: item.user_id,
                       senderId: currentUserId,
+                      otherUserName: item.first_name,
+                      otherUserAvatar: item.avatar,
                     },
                   });
                 }}
@@ -336,6 +365,12 @@ const OrderPage = () => {
                 <Text style={styles.value}>{item.source_country ?? '-'}</Text>
                 <Text style={styles.label}>Wait time:</Text>
                 <Text style={styles.value}>{item.wait_time ?? '-'}</Text>
+                {item.details && (
+                  <>
+                    <Text style={styles.label}>Description:</Text>
+                    <Text style={styles.value}>{item.details}</Text>
+                  </>
+                )}
               </View>
             </View>
           );

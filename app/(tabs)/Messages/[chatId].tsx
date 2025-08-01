@@ -9,9 +9,11 @@ import {
   KeyboardAvoidingView,
   Platform,
   Image,
+  SafeAreaView,
 } from 'react-native';
-import { useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { supabase } from '@/supabaseClient';
+import { Ionicons } from '@expo/vector-icons';
 
 type Message = {
   id: string;
@@ -22,11 +24,6 @@ type Message = {
   created_at: string;
 };
 
-type Profile = {
-  first_name: string;
-  image_url: string | null;
-};
-
 export default function ChatPage() {
   const { chatId, receiverId, otherUserName, otherUserAvatar } = useLocalSearchParams<{
     chatId: string;
@@ -34,10 +31,12 @@ export default function ChatPage() {
     otherUserName: string;
     otherUserAvatar: string;
   }>();
+  const router = useRouter();
 
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [rating, setRating] = useState<number | null>(null);
   const flatListRef = useRef<FlatList>(null);
 
   useEffect(() => {
@@ -51,6 +50,29 @@ export default function ChatPage() {
     };
     fetchUser();
   }, []);
+
+  useEffect(() => {
+    if (receiverId) {
+      const fetchUserRating = async () => {
+        const { data: ratingsData, error: ratingsError } = await supabase
+          .from('ratings')
+          .select('rating')
+          .eq('rated_id', receiverId);
+
+        if (ratingsError) {
+          console.error('Error fetching ratings:', ratingsError);
+          setRating(0); // Default to 0 on error
+        } else if (ratingsData && ratingsData.length > 0) {
+          const avg = ratingsData.reduce((acc, item) => acc + item.rating, 0) / ratingsData.length;
+          setRating(avg);
+        } else {
+          setRating(0); // Default rating if none found
+        }
+      };
+
+      fetchUserRating();
+    }
+  }, [receiverId]);
 
 
   useEffect(() => {
@@ -104,7 +126,7 @@ export default function ChatPage() {
       {
         chat_id: chatId,
         sender_id: currentUserId,
-        receiver_id: receiverId, // ✅ Include receiver_id here
+        receiver_id: receiverId,
         message: input.trim(),
       },
     ]);
@@ -139,57 +161,71 @@ export default function ChatPage() {
   };
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      keyboardVerticalOffset={90}
-    >
-      {/* Header */}
-      <View style={styles.header}>
-        <Image
-          source={{
-            uri:
-              otherUserAvatar?.trim()
-                ? otherUserAvatar
-                : `https://placehold.co/40x40/000000/FFFFFF?text=${otherUserName
-                    ?.slice(0, 2)
-                    .toUpperCase() ?? '??'}`,
-          }}
-          style={styles.headerAvatar}
-        />
-        <Text style={styles.headerName}>
-          {otherUserName ?? 'user'}
-        </Text>
-      </View>
+    <SafeAreaView style={styles.container}>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 60 : 0}
+      >
+        {/* Header */}
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+            <Ionicons name="arrow-back" size={24} color="#fff" />
+          </TouchableOpacity>
+          <Image
+            source={{
+              uri:
+                otherUserAvatar?.trim()
+                  ? otherUserAvatar
+                  : `https://placehold.co/40x40/000000/FFFFFF?text=${otherUserName
+                      ?.slice(0, 2)
+                      .toUpperCase() ?? '??'}`,
+            }}
+            style={styles.headerAvatar}
+          />
+          <View>
+            <Text style={styles.headerName}>
+              {otherUserName ?? 'user'}
+            </Text>
+            <View style={styles.headerStats}>
+              {rating !== null ? (
+                <Text style={styles.statText}>
+                  ⭐ {rating.toFixed(1)}
+                </Text>
+              ) : <Text style={styles.statText}>⭐ N/A</Text>}
+            </View>
+          </View>
+        </View>
 
-      {/* Messages */}
-      <FlatList
-        ref={flatListRef}
-        data={messages}
-        keyExtractor={(item) => item.id}
-        renderItem={renderMessage}
-        contentContainerStyle={styles.messagesContainer}
-        onContentSizeChange={() =>
-          flatListRef.current?.scrollToEnd({ animated: true })
-        }
-      />
-
-      {/* Input */}
-      <View style={styles.inputContainer}>
-        <TextInput
-          placeholder="Type a message..."
-          placeholderTextColor="#888"
-          style={styles.input}
-          value={input}
-          onChangeText={setInput}
-          onSubmitEditing={sendMessage}
-          returnKeyType="send"
+        {/* Messages */}
+        <FlatList
+          ref={flatListRef}
+          data={messages}
+          keyExtractor={(item) => item.id}
+          renderItem={renderMessage}
+          contentContainerStyle={styles.messagesContainer}
+          onContentSizeChange={() =>
+            flatListRef.current?.scrollToEnd({ animated: true })
+          }
         />
-        <TouchableOpacity onPress={sendMessage} style={styles.sendButton}>
-          <Text style={styles.sendButtonText}>Send</Text>
-        </TouchableOpacity>
-      </View>
-    </KeyboardAvoidingView>
+
+        {/* Input */}
+        <View style={styles.inputContainer}>
+          <TextInput
+            placeholder="Type a message..."
+            placeholderTextColor="#888"
+            style={styles.input}
+            value={input}
+            onChangeText={setInput}
+            onSubmitEditing={sendMessage}
+            returnKeyType="send"
+          />
+          <TouchableOpacity onPress={sendMessage} style={styles.sendButton}>
+            <Text style={styles.sendButtonText}>Send</Text>
+          </TouchableOpacity>
+        </View>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 
@@ -207,6 +243,9 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#222',
   },
+  backButton: {
+    marginRight: 10,
+  },
   headerAvatar: {
     width: 40,
     height: 40,
@@ -216,8 +255,18 @@ const styles = StyleSheet.create({
   },
   headerName: {
     color: '#fff',
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: '600',
+  },
+  headerStats: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 2,
+  },
+  statText: {
+    color: '#ccc',
+    fontSize: 12,
+    marginRight: 10,
   },
   messagesContainer: {
     padding: 12,

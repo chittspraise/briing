@@ -10,13 +10,21 @@ import {
   Dimensions,
   NativeSyntheticEvent,
   NativeScrollEvent,
+  ActivityIndicator,
 } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import { Ionicons, MaterialCommunityIcons, Feather } from '@expo/vector-icons';
+import { supabase } from '@/supabaseClient';
 
 const screenWidth = Dimensions.get('window').width;
 
-const PaginationDots = ({ count, activeIndex }: { count: number; activeIndex: number }) => (
+const PaginationDots = ({
+  count,
+  activeIndex,
+}: {
+  count: number;
+  activeIndex: number;
+}) => (
   <View style={styles.paginationContainer}>
     {Array.from({ length: count }).map((_, index) => (
       <View
@@ -31,42 +39,60 @@ const PaginationDots = ({ count, activeIndex }: { count: number; activeIndex: nu
 );
 
 const ProductPage = () => {
-  const params = useLocalSearchParams();
-  const { item_name, price, image_url, store, source_country, order_count } = params;
-
+  const { orderId } = useLocalSearchParams();
+  const [product, setProduct] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
   const [relatedItems, setRelatedItems] = useState<any[]>([]);
   const [activeRelatedIndex, setActiveRelatedIndex] = useState(0);
 
   useEffect(() => {
-    const fetchRelatedItems = async () => {
-      try {
-        const response = await fetch('https://dummyjson.com/products?limit=5');
-        const data = await response.json();
-        const products = data.products.map((p: any) => ({
-          item_name: p.title,
-          image_url: p.thumbnail,
-          price: p.price.toString(),
-          store: p.brand || 'Online Store',
-          source_country: 'Various',
-        }));
-        setRelatedItems(products);
-      } catch (error) {
-        console.error('Error fetching related items from API:', error);
-      }
-    };
+    if (orderId) {
+      fetchProductDetails();
+    }
+  }, [orderId]);
 
-    fetchRelatedItems();
-  }, [store]);
+  const fetchProductDetails = async () => {
+    setLoading(true);
+    const { data, error } = await supabase
+      .from('product_orders')
+      .select('*')
+      .eq('id', orderId)
+      .single();
+
+    if (error) {
+      console.error('Error fetching product details:', error);
+    } else {
+      setProduct(data);
+      fetchRelatedItems(data.store);
+    }
+    setLoading(false);
+  };
+
+  const fetchRelatedItems = async (store: string) => {
+    const { data, error } = await supabase
+      .from('product_orders')
+      .select('*')
+      .eq('store', store)
+      .neq('id', orderId)
+      .limit(5);
+
+    if (error) {
+      console.error('Error fetching related items:', error);
+    } else {
+      setRelatedItems(data);
+    }
+  };
 
   const handleRequestItem = () => {
+    if (!product) return;
     router.push({
       pathname: '/productlink',
       params: {
-        url: store, // Assuming the store name can be used as a URL for now
-        name: store,
-        images: JSON.stringify([image_url]),
-        productName: item_name,
-        price: price,
+        url: product.store,
+        name: product.store,
+        images: JSON.stringify([product.image_url]),
+        productName: product.item_name,
+        price: product.price,
       },
     });
   };
@@ -78,29 +104,79 @@ const ProductPage = () => {
       setIndex(index);
     };
 
+  if (loading) {
+    return (
+      <View style={styles.container}>
+        <ActivityIndicator size="large" color="#fff" />
+      </View>
+    );
+  }
+
+  if (!product) {
+    return (
+      <View style={styles.container}>
+        <Text style={styles.title}>Product not found</Text>
+      </View>
+    );
+  }
+
   return (
     <ScrollView style={styles.container}>
-      <Image source={{ uri: image_url as string }} style={styles.mainImage} />
+      <Image source={{ uri: product.image_url as string }} style={styles.mainImage} />
       <View style={styles.content}>
-        <Text style={styles.title}>{item_name}</Text>
-        <Text style={styles.price}>ZAR{price}</Text>
-        <Text style={styles.details}>From: {source_country}</Text>
-        <TouchableOpacity onPress={() => router.push({ pathname: '/storePage', params: { url: store, name: store } })}>
-          <Text style={styles.link}>Buy from: {store}</Text>
+        <Text style={styles.title}>{product.item_name}</Text>
+        <Text style={styles.price}>ZAR{product.price}</Text>
+        <Text style={styles.details}>From: {product.source_country}</Text>
+        <TouchableOpacity
+          onPress={() =>
+            router.push({
+              pathname: '/storePage',
+              params: { url: product.store, name: product.store },
+            })
+          }
+        >
+          <Text style={styles.link}>Buy from: {product.store}</Text>
         </TouchableOpacity>
-        <Text style={styles.orderCount}>{order_count} people have ordered this</Text>
+        <Text style={styles.orderCount}>
+          {product.order_count || 0} people have ordered this
+        </Text>
 
-        <TouchableOpacity style={styles.requestButton} onPress={handleRequestItem}>
+        <TouchableOpacity
+          style={styles.requestButton}
+          onPress={handleRequestItem}
+        >
           <Text style={styles.requestButtonText}>Request Item</Text>
         </TouchableOpacity>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Pay up to 12 months installments</Text>
+          <Text style={styles.sectionTitle}>
+            Pay up to 12 months installments
+          </Text>
           <View style={styles.paymentLogos}>
-            <Image source={{ uri: 'https://upload.wikimedia.org/wikipedia/commons/5/5e/Visa_Inc._logo.svg' }} style={styles.paymentLogo} />
-            <Image source={{ uri: 'https://upload.wikimedia.org/wikipedia/commons/2/2a/Mastercard-logo.svg' }} style={styles.paymentLogo} />
-            <Image source={{ uri: 'https://upload.wikimedia.org/wikipedia/commons/f/fa/American_Express_logo_%282018%29.svg' }} style={styles.paymentLogo} />
-            <Image source={{ uri: 'https://logowik.com/content/uploads/images/fnb-first-national-bank-new-20222658.jpg' }} style={styles.paymentLogo} />
+            <Image
+              source={{
+                uri: 'https://upload.wikimedia.org/wikipedia/commons/5/5e/Visa_Inc._logo.svg',
+              }}
+              style={styles.paymentLogo}
+            />
+            <Image
+              source={{
+                uri: 'https://upload.wikimedia.org/wikipedia/commons/2/2a/Mastercard-logo.svg',
+              }}
+              style={styles.paymentLogo}
+            />
+            <Image
+              source={{
+                uri: 'https://upload.wikimedia.org/wikipedia/commons/f/fa/American_Express_logo_%282018%29.svg',
+              }}
+              style={styles.paymentLogo}
+            />
+            <Image
+              source={{
+                uri: 'https://logowik.com/content/uploads/images/fnb-first-national-bank-new-20222658.jpg',
+              }}
+              style={styles.paymentLogo}
+            />
           </View>
         </View>
 
@@ -110,7 +186,8 @@ const ProductPage = () => {
             <View style={styles.featureText}>
               <Text style={styles.featureTitle}>Briing Protection</Text>
               <Text style={styles.featureDescription}>
-                Briing protects your payment until you confirm you have received your order.
+                Briing protects your payment until you confirm you have
+                received your order.
               </Text>
             </View>
           </View>
@@ -119,7 +196,8 @@ const ProductPage = () => {
             <View style={styles.featureText}>
               <Text style={styles.featureTitle}>Secure Payments</Text>
               <Text style={styles.featureDescription}>
-                Your payment is secured and never released to the traveler until you confirm you have received your order.
+                Your payment is secured and never released to the traveler
+                until you confirm you have received your order.
               </Text>
             </View>
           </View>
@@ -133,11 +211,16 @@ const ProductPage = () => {
             </View>
           </View>
           <View style={styles.featureSection}>
-            <Ionicons name="chatbubble-ellipses-outline" size={24} color="#666" />
+            <Ionicons
+              name="chatbubble-ellipses-outline"
+              size={24}
+              color="#666"
+            />
             <View style={styles.featureText}>
               <Text style={styles.featureTitle}>24/7 Customer Care</Text>
               <Text style={styles.featureDescription}>
-                Our support team is available to help you with any questions or issues.
+                Our support team is available to help you with any questions or
+                issues.
               </Text>
             </View>
           </View>
@@ -151,16 +234,30 @@ const ProductPage = () => {
             pagingEnabled
             showsHorizontalScrollIndicator={false}
             onScroll={handleScroll(setActiveRelatedIndex)}
-            keyExtractor={(item) => item.item_name}
+            keyExtractor={(item) => item.id.toString()}
             renderItem={({ item }) => (
-              <TouchableOpacity style={styles.relatedItemCard} onPress={() => router.push({ pathname: '/ProductPage', params: { ...item } })}>
-                <Image source={{ uri: item.image_url }} style={styles.relatedItemImage} />
+              <TouchableOpacity
+                style={styles.relatedItemCard}
+                onPress={() =>
+                  router.push({
+                    pathname: '/ProductPage',
+                    params: { orderId: item.id },
+                  })
+                }
+              >
+                <Image
+                  source={{ uri: item.image_url }}
+                  style={styles.relatedItemImage}
+                />
                 <Text style={styles.relatedItemName}>{item.item_name}</Text>
                 <Text style={styles.relatedItemPrice}>ZAR{item.price}</Text>
               </TouchableOpacity>
             )}
           />
-          <PaginationDots count={relatedItems.length} activeIndex={activeRelatedIndex} />
+          <PaginationDots
+            count={relatedItems.length}
+            activeIndex={activeRelatedIndex}
+          />
         </View>
       </View>
     </ScrollView>
@@ -276,6 +373,7 @@ const styles = StyleSheet.create({
     height: 150,
     borderRadius: 8,
     backgroundColor: '#1a1a1a',
+    resizeMode: 'contain',
   },
   relatedItemName: {
     fontSize: 14,

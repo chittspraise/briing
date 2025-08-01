@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -7,12 +7,8 @@ import {
   TouchableOpacity,
   ScrollView,
 } from 'react-native';
-import {
-  Feather,
-  Ionicons,
-  MaterialIcons,
-} from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
+import { Feather, Ionicons, MaterialIcons } from '@expo/vector-icons';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { supabase } from '@/supabaseClient';
 import { useRouter } from 'expo-router';
 import type { StackNavigationProp } from '@react-navigation/stack';
@@ -26,41 +22,76 @@ type RootStackParamList = {
   'app/index': undefined; // Main entry screen
 };
 
+const renderStars = (rating: number) => {
+  const fullStars = Math.floor(rating);
+  const halfStar = rating - fullStars >= 0.5 ? 1 : 0;
+  const emptyStars = 5 - fullStars - halfStar;
+  return (
+    '★'.repeat(fullStars) +
+    (halfStar ? '½' : '') +
+    '☆'.repeat(emptyStars)
+  );
+};
+
 const ProfileScreen = () => {
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
   const router = useRouter();
 
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
+  const [rating, setRating] = useState(5);
+  const [avatarUrl, setAvatarUrl] = useState('https://picsum.photos/100');
 
-  useEffect(() => {
-    const fetchProfile = async () => {
-      const {
-        data: { user },
-        error: userError,
-      } = await supabase.auth.getUser();
+  const fetchProfile = useCallback(async () => {
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser();
 
-      if (userError || !user) {
-        console.log('Error fetching user:', userError?.message);
-        return;
+    if (userError || !user) {
+      console.log('Error fetching user:', userError?.message);
+      return;
+    }
+
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('first_name, last_name, image_url')
+      .eq('id', user.id)
+      .single();
+
+    if (error) {
+      console.log('Error fetching profile:', error.message);
+    } else if (data) {
+      setFirstName(data.first_name || '');
+      setLastName(data.last_name || '');
+      if (data.image_url) {
+        setAvatarUrl(data.image_url);
       }
+    }
 
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('first_name, last_name')
-        .eq('id', user.id)
-        .single();
+    const { data: ratingsData, error: ratingsError } = await supabase
+      .from('ratings')
+      .select('rating')
+      .eq('rated_id', user.id);
 
-      if (error) {
-        console.log('Error fetching profile:', error.message);
-      } else if (data) {
-        setFirstName(data.first_name || '');
-        setLastName(data.last_name || '');
-      }
-    };
-
-    fetchProfile();
+    if (ratingsError) {
+      console.log('Error fetching ratings:', ratingsError.message);
+      setRating(5); // Default to 5 on error
+    } else if (ratingsData && ratingsData.length > 0) {
+      const avgRating =
+        ratingsData.reduce((acc, r) => acc + r.rating, 0) /
+        ratingsData.length;
+      setRating(avgRating);
+    } else {
+      setRating(5); // Default to 5 if no ratings found
+    }
   }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchProfile();
+    }, [fetchProfile])
+  );
 
   const handleLogout = async () => {
     const { error } = await supabase.auth.signOut();
@@ -77,12 +108,15 @@ const ProfileScreen = () => {
       <View style={styles.profileBanner}>
         <Image
           style={styles.avatar}
-          source={{ uri: 'https://picsum.photos/100' }}
+          source={{ uri: avatarUrl }}
         />
         <View style={styles.profileInfo}>
           <Text style={styles.name}>
             {firstName || lastName ? `${firstName} ${lastName}` : 'Loading...'}
           </Text>
+          <View style={styles.ratingContainer}>
+            <Text style={styles.ratingText}>{renderStars(rating)} ({rating.toFixed(1)})</Text>
+          </View>
           <TouchableOpacity onPress={() => navigation.navigate('profile')}>
             <Text style={styles.editProfile}>Edit profile</Text>
           </TouchableOpacity>
@@ -230,6 +264,15 @@ const styles = StyleSheet.create({
   optionText: {
     fontSize: 16,
     color: '#fff',
+  },
+  ratingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  ratingText: {
+    color: '#ccc',
+    fontSize: 14,
   },
 });
 

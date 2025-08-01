@@ -2,7 +2,6 @@ import React, { useEffect, useState } from 'react';
 import {
   FlatList,
   Image,
-  
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -10,9 +9,10 @@ import {
 } from 'react-native';
 import Toast from 'react-native-toast-message';
 import { Ionicons } from '@expo/vector-icons';
-import { router,} from 'expo-router';
+import { router } from 'expo-router';
 import { supabase } from '@/supabaseClient';
 import { openStripeCheckout, setupStripePaymentSheet } from '@/app/lib/stripe';
+import RatingModal from '@/components/RatingModal';
 
 type Order = {
   id: number;
@@ -40,11 +40,29 @@ type Order = {
   rating: number;
   images: string[];
   time: string;
+  details: string | null;
+};
+
+type Rating = {
+  id: number;
+  order_id: number;
+  rater_id: string;
+  rated_id: string;
+  rating: number;
+  comment: string;
 };
 
 const STATUS_CHAIN = ['pending', 'accepted', 'paid', 'purchased', 'intransit', 'delivered', 'received'];
-const renderStars = (rating: number) =>
-  '★'.repeat(Math.floor(rating)) + '☆'.repeat(5 - Math.floor(rating));
+const renderStars = (rating: number) => {
+  const fullStars = Math.floor(rating);
+  const halfStar = rating - fullStars >= 0.5 ? 1 : 0;
+  const emptyStars = 5 - fullStars - halfStar;
+  return (
+    '★'.repeat(fullStars) +
+    (halfStar ? '½' : '') +
+    '☆'.repeat(emptyStars)
+  );
+};
 
 function generateChatId(orderId: string, userA: string, userB: string): string {
   const [first, second] = [userA, userB].sort();
@@ -56,6 +74,9 @@ const MyOrdersPage = () => {
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [dropdownsVisible, setDropdownsVisible] = useState<{ [key: number]: boolean }>({});
   const [loading, setLoading] = useState(false);
+  const [ratingModalVisible, setRatingModalVisible] = useState(false);
+  const [ratingOrder, setRatingOrder] = useState<Order | null>(null);
+  const [ratings, setRatings] = useState<Rating[]>([]);
 
   useEffect(() => {
     const fetchUserAndOrders = async () => {
@@ -76,15 +97,12 @@ const MyOrdersPage = () => {
       .order('created_at', { ascending: false });
 
     const { data: confirmedOrders } = await supabase.from('confirmed_orders').select('*');
-    const { data: profiles } = await supabase.from('profiles').select('id, first_name, image_url');
-    const profileMap = new Map((profiles || []).map(p => [p.id, p]));
-
+    
     const filteredOrders = (productOrders || []).filter(order => {
       const confirmed = confirmedOrders?.find(co => co.order_id === order.id);
       const isDeclined = order.status === 'declined' || confirmed?.status === 'declined';
       const isCancelled = order.status === 'cancelled';
 
-      // Exclude orders that are declined or cancelled by the current user
       if ((isDeclined || isCancelled) && (order.traveler_id === userId || confirmed?.traveler_id === userId)) {
         return false;
       }
@@ -97,17 +115,50 @@ const MyOrdersPage = () => {
       );
     });
 
+    const userIds = Array.from(new Set(filteredOrders.map(o => o.user_id).filter(id => id)));
+    const travelerIds = Array.from(new Set(filteredOrders.map(o => o.traveler_id).filter(id => id)));
+    const allUserIds = [...new Set([...userIds, ...travelerIds])];
+
+    const { data: profiles } = await supabase.from('profiles').select('id, first_name, image_url').in('id', allUserIds);
+    const profileMap = new Map((profiles || []).map(p => [p.id, p]));
+
+    const { data: ratingsData } = await supabase.from('ratings').select('rated_id, rating').in('rated_id', allUserIds);
+    
+    const ratingsMap = new Map<string, { total: number; count: number }>();
+    if (ratingsData) {
+      for (const rating of ratingsData) {
+        if (!ratingsMap.has(rating.rated_id)) {
+          ratingsMap.set(rating.rated_id, { total: 0, count: 0 });
+        }
+        const current = ratingsMap.get(rating.rated_id)!;
+        current.total += rating.rating;
+        current.count += 1;
+      }
+    }
+    
+    const orderIds = filteredOrders.map(o => o.id);
+    const { data: orderRatingsData } = await supabase.from('ratings').select('*').in('order_id', orderIds);
+    setRatings(orderRatingsData || []);
+
     const enriched: Order[] = filteredOrders.map(order => {
-      const profile = profileMap.get(order.user_id);
       const confirmed = confirmedOrders?.find(co => co.order_id === order.id);
+      const travelerId = confirmed?.traveler_id || order.traveler_id;
+      const shopperId = confirmed?.shopper_id || order.user_id;
+
+      const relevantUser = userId === shopperId ? profileMap.get(travelerId) : profileMap.get(shopperId);
+      const relevantUserId = userId === shopperId ? travelerId : shopperId;
+
+      const userRating = ratingsMap.get(relevantUserId);
+      const avgRating = userRating ? userRating.total / userRating.count : 5;
+
       return {
         ...order,
         confirmed_id: confirmed?.id,
-        shopper_id: confirmed?.shopper_id,
-        traveler_id: confirmed?.traveler_id || order.traveler_id,
-        first_name: profile?.first_name || 'Unknown',
-        avatar: profile?.image_url,
-        rating: 4,
+        shopper_id: shopperId,
+        traveler_id: travelerId,
+        first_name: relevantUser?.first_name || 'Unknown',
+        avatar: relevantUser?.image_url,
+        rating: avgRating,
         images: order.image_url ? [order.image_url] : [],
         time: new Date(order.created_at).toLocaleString(),
       };
@@ -118,6 +169,40 @@ const MyOrdersPage = () => {
 
   const toggleDropdown = (id: number) => {
     setDropdownsVisible(prev => ({ ...prev, [id]: !prev[id] }));
+  };
+
+  const handleRatingSubmit = async (rating: number, comment: string) => {
+    if (!ratingOrder || !currentUserId) return;
+
+    const raterId = currentUserId;
+    const ratedId =
+      raterId === ratingOrder.user_id ? ratingOrder.traveler_id : ratingOrder.user_id;
+
+    if (!ratedId) {
+      Toast.show({ type: 'error', text1: 'Error', text2: 'Could not determine who to rate.' });
+      return;
+    }
+
+    const { error } = await supabase.from('ratings').insert([
+      {
+        order_id: ratingOrder.id,
+        rater_id: raterId,
+        rated_id: ratedId,
+        rating,
+        comment,
+      },
+    ]);
+
+    if (error) {
+      Toast.show({ type: 'error', text1: 'Error', text2: 'Failed to submit rating.' });
+    } else {
+      Toast.show({ type: 'success', text1: 'Success', text2: 'Rating submitted.' });
+      if (currentUserId) {
+        fetchOrders(currentUserId);
+      }
+    }
+    setRatingModalVisible(false);
+    setRatingOrder(null);
   };
 
   const updateStatus = async (order: Order, newStatus: string) => {
@@ -148,6 +233,11 @@ const MyOrdersPage = () => {
       }
 
       Toast.show({ type: 'success', text1: 'Success', text2: 'Status updated successfully.' });
+
+      if (newStatus === 'received') {
+        setRatingOrder(order);
+        setRatingModalVisible(true);
+      }
 
       if (newStatus === 'received' && order.traveler_id) {
         const {
@@ -258,6 +348,8 @@ const MyOrdersPage = () => {
     const currentIndex = STATUS_CHAIN.indexOf(item.status);
     const nextStatus = currentIndex !== -1 && currentIndex < STATUS_CHAIN.length - 1 ? STATUS_CHAIN[currentIndex + 1] : null;
 
+    const hasRated = ratings.some(r => r.order_id === item.id && r.rater_id === currentUserId);
+
     let statusOptions: string[] = [];
     if (item.status !== 'declined' && item.status !== 'received') {
       if (nextStatus) {
@@ -278,18 +370,38 @@ const MyOrdersPage = () => {
     return (
       <View style={styles.card}>
         <View style={styles.statusRow}>
-          <Text style={styles.statusLabel}>Status: {item.status}</Text>
-          {isCreator && item.status === 'accepted' ? (
-            <TouchableOpacity style={styles.checkoutButton} onPress={() => handleCheckout(item)}>
-              <Text style={styles.checkoutText}>Checkout</Text>
-            </TouchableOpacity>
-          ) : (
-            <View style={[styles.checkoutButton, styles.disabledButton]}>
-              <Text style={styles.checkoutText}>{nextStatus || 'Completed'}</Text>
+          {item.status === 'received' ? (
+            <View style={[styles.checkoutButton, styles.completedButton]}>
+              <Text style={[styles.checkoutText, { color: '#fff' }]}>Completed</Text>
             </View>
+          ) : (
+            <>
+              <Text style={styles.statusLabel}>Status: {item.status}</Text>
+              {isCreator && item.status === 'accepted' ? (
+                <TouchableOpacity style={styles.checkoutButton} onPress={() => handleCheckout(item)}>
+                  <Text style={styles.checkoutText}>Checkout</Text>
+                </TouchableOpacity>
+              ) : (
+                <View style={[styles.checkoutButton, styles.disabledButton]}>
+                  <Text style={styles.checkoutText}>{nextStatus || 'Completed'}</Text>
+                </View>
+              )}
+            </>
           )}
         </View>
         {renderStatusBar(item.status)}
+
+        {item.status === 'received' && !hasRated && (
+          <TouchableOpacity
+            style={styles.rateButton}
+            onPress={() => {
+              setRatingOrder(item);
+              setRatingModalVisible(true);
+            }}
+          >
+            <Text style={styles.rateButtonText}>Rate Transaction</Text>
+          </TouchableOpacity>
+        )}
 
         {travelerConfirmed && item.status === 'pending' && (
           <View style={styles.travelerActions}>
@@ -298,7 +410,7 @@ const MyOrdersPage = () => {
               onPress={() => {
                 const chatId = generateChatId(item.id.toString(), currentUserId!, item.user_id);
                 router.push({
-                  pathname: '/Orders/[chatId]',
+                  pathname: '/Messages/[chatId]',
                   params: {
                     chatId,
                     receiverId: item.user_id,
@@ -328,7 +440,9 @@ const MyOrdersPage = () => {
           {item.avatar && <Image source={{ uri: item.avatar }} style={styles.avatar} />}
           <View style={{ flex: 1 }}>
             <Text style={styles.name}>{item.first_name}</Text>
-            <Text style={styles.rating}>{renderStars(item.rating)}</Text>
+            <Text style={styles.rating}>
+              {renderStars(item.rating)} ({item.rating.toFixed(1)})
+            </Text>
             <Text style={styles.time}>{item.time}</Text>
           </View>
           {statusOptions.length > 0 && !(travelerConfirmed && item.status === 'pending') && (
@@ -379,20 +493,33 @@ const MyOrdersPage = () => {
           <Text style={styles.value}>{item.source_country}</Text>
           <Text style={styles.label}>Wait time:</Text>
           <Text style={styles.value}>{item.wait_time}</Text>
+          {item.details && (
+            <>
+              <Text style={styles.label}>Description:</Text>
+              <Text style={styles.value}>{item.details}</Text>
+            </>
+          )}
         </View>
       </View>
     );
   };
 
   return (
-    <FlatList
-      data={orders}
-      keyExtractor={item => item.id.toString()}
-      renderItem={({ item }) => renderCard(item)}
-      refreshing={loading}
-      onRefresh={() => currentUserId && fetchOrders(currentUserId)}
-      contentContainerStyle={{ padding: 16 }}
-    />
+    <>
+      <FlatList
+        data={orders}
+        keyExtractor={item => item.id.toString()}
+        renderItem={({ item }) => renderCard(item)}
+        refreshing={loading}
+        onRefresh={() => currentUserId && fetchOrders(currentUserId)}
+        contentContainerStyle={{ padding: 16 }}
+      />
+      <RatingModal
+        visible={ratingModalVisible}
+        onClose={() => setRatingModalVisible(false)}
+        onSubmit={handleRatingSubmit}
+      />
+    </>
   );
 };
 
@@ -448,6 +575,9 @@ const styles = StyleSheet.create({
   },
   disabledButton: {
     opacity: 0.3,
+  },
+  completedButton: {
+    backgroundColor: 'green',
   },
   dropdownMenu: {
     backgroundColor: '#222',
@@ -546,6 +676,17 @@ const styles = StyleSheet.create({
   },
   declineButton: {
     backgroundColor: '#a00',
+  },
+  rateButton: {
+    backgroundColor: '#2196F3',
+    paddingVertical: 10,
+    borderRadius: 6,
+    marginBottom: 16,
+    alignItems: 'center',
+  },
+  rateButtonText: {
+    color: '#fff',
+    fontWeight: 'bold',
   },
 });
 

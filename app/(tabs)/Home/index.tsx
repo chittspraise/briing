@@ -55,6 +55,7 @@ const HomeScreen: React.FC = () => {
     avatar: string;
     rating: number;
     images: string[];
+    details: string | null;
   };
 
   const [orders, setOrders] = useState<Order[]>([]);
@@ -123,7 +124,8 @@ const HomeScreen: React.FC = () => {
         wait_time,
         image_url,
         user_id,
-        store
+        store,
+        details
       `)
       .eq('status', 'pending')
       .order('created_at', { ascending: false });
@@ -353,7 +355,7 @@ const HomeScreen: React.FC = () => {
                   onPress={() => {
                     if (!currentUserId) return alert('Please log in to chat.');
                     router.push({
-                      pathname: '/Orders/[chatId]',
+                      pathname: '/(tabs)/Messages/[chatId]',
                       params: {
                         chatId,
                         receiverId: item.user_id,
@@ -385,6 +387,12 @@ const HomeScreen: React.FC = () => {
                   <Text style={styles.value}>{item.source_country ?? '-'}</Text>
                   <Text style={styles.label}>Wait time:</Text>
                   <Text style={styles.value}>{item.wait_time ?? '-'}</Text>
+                  {item.details && (
+                    <>
+                      <Text style={styles.label}>Description:</Text>
+                      <Text style={styles.value}>{item.details}</Text>
+                    </>
+                  )}
                 </View>
               </View>
             );

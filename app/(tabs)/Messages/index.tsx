@@ -70,7 +70,7 @@ const MessagesPage = () => {
       style={styles.messageCard}
       onPress={() =>
         router.push({
-          pathname: '/Orders/[chatId]',
+          pathname: '/Messages/[chatId]',
           params: {
             chatId: item.id,
             receiverId: item.other_user_id,

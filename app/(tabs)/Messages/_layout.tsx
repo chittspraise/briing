@@ -1,6 +1,10 @@
-// app/(tabs)/orders/_layout.tsx
 import { Stack } from 'expo-router';
 
-export default function HomeStack() {
-  return <Stack screenOptions={{ headerShown: false }} />;
+export default function MessagesStack() {
+  return (
+    <Stack>
+      <Stack.Screen name="index" options={{ headerShown: false }} />
+      <Stack.Screen name="[chatId]" options={{ headerShown: false }} />
+    </Stack>
+  );
 }

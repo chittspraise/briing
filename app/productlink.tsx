@@ -47,6 +47,7 @@ const ProductLinkPage = () => {
   const [selectedImage, setSelectedImage] = useState<string | null>(images.length > 0 ? images[0] : null);
   const [isGift, setIsGift] = useState(false);
   const [productName, setProductName] = useState(productNameFromParams);
+  const [description, setDescription] = useState('');
 
 
   const handleImagePick = async () => {
@@ -74,7 +75,7 @@ const ProductLinkPage = () => {
       quantity: quantity,
       image_url: selectedImage,
       with_box: !isGift,
-      details: '', // You can add a details field if needed
+      details: description,
     });
     router.push('/DeliveryDetails');
   };
@@ -123,6 +124,16 @@ const ProductLinkPage = () => {
         placeholder="Enter quantity"
         placeholderTextColor="#999"
         keyboardType="numeric"
+      />
+
+      <Text style={styles.label}>Product Description</Text>
+      <TextInput
+        style={[styles.input, { height: 100 }]}
+        value={description}
+        onChangeText={setDescription}
+        placeholder="Enter product description"
+        placeholderTextColor="#999"
+        multiline
       />
 
       <Text style={styles.label}>Product Image</Text>
@@ -218,6 +229,7 @@ const styles = StyleSheet.create({
     height: 200,
     borderRadius: 8,
     marginBottom: 10,
+    resizeMode: 'contain',
   },
   thumbnailList: {
     marginTop: 10,
