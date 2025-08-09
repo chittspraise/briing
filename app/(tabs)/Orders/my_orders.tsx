@@ -41,6 +41,7 @@ type Order = {
   images: string[];
   time: string;
   details: string | null;
+  store_url?: string;
 };
 
 type Rating = {
@@ -436,21 +437,33 @@ const MyOrdersPage = () => {
           </View>
         )}
 
-        <View style={styles.profileRow}>
-          {item.avatar && <Image source={{ uri: item.avatar }} style={styles.avatar} />}
-          <View style={{ flex: 1 }}>
-            <Text style={styles.name}>{item.first_name}</Text>
-            <Text style={styles.rating}>
-              {renderStars(item.rating)} ({item.rating.toFixed(1)})
-            </Text>
-            <Text style={styles.time}>{item.time}</Text>
+        {isCreator && item.status === 'pending' ? (
+          <View style={styles.profileRow}>
+            <View style={styles.avatarPlaceholder}>
+              <Ionicons name="person-outline" size={24} color="#888" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.name}>Awaiting traveler</Text>
+              <Text style={styles.time}>{item.time}</Text>
+            </View>
           </View>
-          {statusOptions.length > 0 && !(travelerConfirmed && item.status === 'pending') && (
-            <TouchableOpacity onPress={() => toggleDropdown(item.id)}>
-              <Ionicons name="menu" size={24} color="#fff" />
-            </TouchableOpacity>
-          )}
-        </View>
+        ) : (
+          <View style={styles.profileRow}>
+            {item.avatar && <Image source={{ uri: item.avatar }} style={styles.avatar} />}
+            <View style={{ flex: 1 }}>
+              <Text style={styles.name}>{item.first_name}</Text>
+              <Text style={styles.rating}>
+                {renderStars(item.rating)} ({item.rating.toFixed(1)})
+              </Text>
+              <Text style={styles.time}>{item.time}</Text>
+            </View>
+            {statusOptions.length > 0 && !(travelerConfirmed && item.status === 'pending') && (
+              <TouchableOpacity onPress={() => toggleDropdown(item.id)}>
+                <Ionicons name="menu" size={24} color="#fff" />
+              </TouchableOpacity>
+            )}
+          </View>
+        )}
         {dropdownsVisible[item.id] && (
           <View style={styles.dropdownMenu}>
             {statusOptions.map(s => (
@@ -464,6 +477,14 @@ const MyOrdersPage = () => {
           <Text style={styles.productName}>{item.item_name}</Text>
           <Text style={styles.quantityText}> (x{item.quantity})</Text>
         </View>
+        {isCreator && item.status === 'pending' && (
+          <TouchableOpacity
+            style={styles.editButton}
+            onPress={() => router.push({ pathname: '/productlink', params: { orderId: item.id } })}
+          >
+            <Text style={styles.editButtonText}>Edit Order</Text>
+          </TouchableOpacity>
+        )}
         {item.images.length > 0 && (
           <FlatList
             horizontal
@@ -545,6 +566,15 @@ const styles = StyleSheet.create({
     height: 48,
     borderRadius: 24,
     marginRight: 12,
+  },
+  avatarPlaceholder: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    marginRight: 12,
+    backgroundColor: '#222',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   name: {
     color: '#fff',
@@ -686,6 +716,17 @@ const styles = StyleSheet.create({
   },
   rateButtonText: {
     color: '#fff',
+    fontWeight: 'bold',
+  },
+  editButton: {
+    backgroundColor: '#fff',
+    paddingVertical: 10,
+    borderRadius: 6,
+    marginBottom: 16,
+    alignItems: 'center',
+  },
+  editButtonText: {
+    color: '#000',
     fontWeight: 'bold',
   },
 });

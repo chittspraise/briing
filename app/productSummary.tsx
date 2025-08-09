@@ -13,11 +13,16 @@ import {
 import Toast from 'react-native-toast-message';
 import { AntDesign, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
+import { useLocalSearchParams } from 'expo-router';
 import { supabase } from '@/supabaseClient';
 import { useTravelerOrderStore } from './store/travelerOrderStore';
 
 export default function SummaryPage() {
   const navigation = useNavigation<any>();
+  const params = useLocalSearchParams();
+  const orderId = params.orderId as string | undefined;
+
+  const [order, setOrder] = useState<any>(null);
 
   const {
     item_name,
@@ -38,6 +43,24 @@ export default function SummaryPage() {
   const [userId, setUserId] = useState<string | null>(null);
   const [displayQuantity, setDisplayQuantity] = useState(parseInt(quantity || '1', 10));
 
+  useEffect(() => {
+    if (orderId) {
+      const fetchOrder = async () => {
+        const { data, error } = await supabase
+          .from('product_orders')
+          .select('*')
+          .eq('id', orderId)
+          .single();
+        if (data) {
+          setOrder(data);
+          setDisplayQuantity(data.quantity);
+          setTravelerReward(data.traveler_reward.toString());
+        }
+      };
+      fetchOrder();
+    }
+  }, [orderId]);
+
   const handleQuantityChange = (amount: number) => {
     const newQuantity = Math.max(1, displayQuantity + amount);
     setDisplayQuantity(newQuantity);
@@ -55,7 +78,7 @@ export default function SummaryPage() {
   }, []);
 
   // Calculate fees and totals
-  const numericPrice = (parseFloat(price || '0') || 0) * displayQuantity;
+  const numericPrice = (parseFloat(order?.price || price || '0') || 0) * displayQuantity;
   const platformFee = Math.round(numericPrice * 0.05 * 100) / 100;
   const processingFee = Math.round(numericPrice * 0.05 * 100) / 100;
   const vatEstimate = Math.round(numericPrice * 0.15 * 100) / 100;
@@ -70,39 +93,49 @@ export default function SummaryPage() {
     }
 
     const payload = {
-      item_name,
-      store: store || null,
+      item_name: order?.item_name || item_name,
+      store: order?.store || store || null,
       price: numericPrice,
       quantity: displayQuantity,
-      details,
-      with_box,
-      image_url,
-      source_country: deliver_from,
-      destination,
-      wait_time,
+      details: order?.details || details,
+      with_box: order?.with_box || with_box,
+      image_url: order?.image_url || image_url,
+      source_country: order?.source_country || deliver_from,
+      destination: order?.destination || destination,
+      wait_time: order?.wait_time || wait_time,
       platform_fee: platformFee,
       processing_fee: processingFee,
       vat_estimate: vatEstimate,
       traveler_reward: reward,
       estimated_total: estimatedTotal,
       user_id: userId,
-      traveler_id: travelerId || null, // explicitly null if undefined
+      traveler_id: order?.traveler_id || travelerId || null,
       status: 'pending',
     };
 
     try {
-      const { error } = await supabase.from('product_orders').insert(payload);
-      if (error) {
-        Toast.show({ type: 'error', text1: 'Error', text2: 'Could not create order' });
-        console.error('Supabase insert error:', error);
+      let error;
+      if (orderId) {
+        const { error: updateError } = await supabase.from('product_orders').update(payload).eq('id', orderId);
+        error = updateError;
       } else {
-        clearOrder();
+        const { error: insertError } = await supabase.from('product_orders').insert(payload);
+        error = insertError;
+      }
+      
+      if (error) {
+        Toast.show({ type: 'error', text1: 'Error', text2: `Could not ${orderId ? 'update' : 'create'} order` });
+        console.error('Supabase error:', error);
+      } else {
+        if (!orderId) {
+          clearOrder();
+        }
         Toast.show({
           type: 'success',
           text1: 'Success',
-          text2: 'Your delivery request has been submitted successfully.',
+          text2: `Your order has been ${orderId ? 'updated' : 'submitted'} successfully.`,
         });
-        navigation.navigate('(tabs)', { screen: 'home' });
+        navigation.navigate('(tabs)', { screen: 'Orders', params: { screen: 'my_orders' } } );
       }
     } catch (err) {
       Toast.show({ type: 'error', text1: 'Error', text2: 'An unexpected error occurred.' });
@@ -126,14 +159,14 @@ export default function SummaryPage() {
       <ScrollView style={styles.scrollViewContent}>
         {/* Product Card */}
         <View style={styles.productCard}>
-          {image_url ? (
-            <Image source={{ uri: image_url }} style={styles.productImage} />
+          {(order?.image_url || image_url) ? (
+            <Image source={{ uri: order?.image_url || image_url }} style={styles.productImage} />
           ) : (
             <View style={styles.productLogoContainer}>
               <MaterialCommunityIcons name="cube-outline" size={30} color="white" />
             </View>
           )}
-          <Text style={styles.productTitle}>{item_name || 'N/A'}</Text>
+          <Text style={styles.productTitle}>{order?.item_name || item_name || 'N/A'}</Text>
         </View>
 
         {/* Delivery Info */}
@@ -141,20 +174,20 @@ export default function SummaryPage() {
           <Text style={styles.label}>Delivery route</Text>
           <View style={styles.detailRow}>
             <Text style={styles.subLabel}>Deliver from</Text>
-            <Text style={styles.value}>{deliver_from || 'N/A'}</Text>
+            <Text style={styles.value}>{order?.source_country || deliver_from || 'N/A'}</Text>
           </View>
           <View style={styles.detailRow}>
             <Text style={styles.subLabel}>Deliver to</Text>
-            <Text style={styles.value}>{destination || 'N/A'}</Text>
+            <Text style={styles.value}>{order?.destination || destination || 'N/A'}</Text>
           </View>
           <View style={styles.detailRow}>
             <Text style={styles.subLabel}>Wait time</Text>
-            <Text style={styles.value}>{wait_time || 'N/A'}</Text>
+            <Text style={styles.value}>{order?.wait_time || wait_time || 'N/A'}</Text>
           </View>
           <View style={styles.detailRow}>
             <Text style={styles.subLabel}>Delivery type</Text>
             <Text style={styles.value}>
-              {travelerId ? 'Private (specific traveler)' : 'Open to any traveler'}
+              {(order?.traveler_id || travelerId) ? 'Private (specific traveler)' : 'Open to any traveler'}
             </Text>
           </View>
         </View>
@@ -176,18 +209,18 @@ export default function SummaryPage() {
           </View>
           <View style={styles.detailRow}>
             <Text style={styles.subLabel}>Packaging</Text>
-            <Text style={styles.value}>{with_box ? 'With box' : 'Without box'}</Text>
+            <Text style={styles.value}>{(order?.with_box || with_box) ? 'With box' : 'Without box'}</Text>
           </View>
           <View style={styles.detailRow}>
             <Text style={styles.subLabel}>Store</Text>
-            <Text style={styles.value}>{store || 'N/A'}</Text>
+            <Text style={styles.value}>{order?.store || store || 'N/A'}</Text>
           </View>
         </View>
 
         {/* Description */}
         <View style={styles.section}>
           <Text style={styles.label}>Product details</Text>
-          <Text style={styles.value}>{details || 'No details provided'}</Text>
+          <Text style={styles.value}>{order?.details || details || 'No details provided'}</Text>
         </View>
 
         {/* Reward */}

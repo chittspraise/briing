@@ -201,17 +201,21 @@ const ExplorePage = () => {
 
       if (error) {
         console.error('Error fetching travelers:', error);
-        Toast.show({ type: 'error', text1: 'Error', text2: 'Failed to fetch travelers.' });
+        Toast.show({
+          type: 'error',
+          text1: 'Error',
+          text2: 'Failed to fetch travelers.',
+        });
         return;
       }
-      
+
       if (!data) {
         setTravelers([]);
         return;
       }
 
-      const userIds = data.map(item => item.user_id).filter(id => id);
-      
+      const userIds = data.map((item) => item.user_id).filter((id) => id);
+
       const { data: profiles, error: profilesError } = await supabase
         .from('profiles')
         .select('id, image_url')
@@ -231,11 +235,18 @@ const ExplorePage = () => {
         console.error('Error fetching ratings:', ratingsError);
       }
 
-      const ratingsMap = new Map<string, { total: number; count: number; comments: string[] }>();
+      const ratingsMap = new Map<
+        string,
+        { total: number; count: number; comments: string[] }
+      >();
       if (ratingsData) {
         for (const rating of ratingsData) {
           if (!ratingsMap.has(rating.rated_id)) {
-            ratingsMap.set(rating.rated_id, { total: 0, count: 0, comments: [] });
+            ratingsMap.set(rating.rated_id, {
+              total: 0,
+              count: 0,
+              comments: [],
+            });
           }
           const current = ratingsMap.get(rating.rated_id)!;
           current.total += rating.rating;
@@ -246,11 +257,13 @@ const ExplorePage = () => {
         }
       }
 
-      const profilesMap = new Map(profiles?.map(p => [p.id, p.image_url]));
+      const profilesMap = new Map(profiles?.map((p) => [p.id, p.image_url]));
 
       const mappedTravelers = data.map((item, index) => {
         const userRating = ratingsMap.get(item.user_id!);
-        const avgRating = userRating ? userRating.total / userRating.count : 5;
+        const avgRating = userRating
+          ? userRating.total / userRating.count
+          : 5;
         const latestComment = userRating?.comments[0] || null;
 
         return {
@@ -263,16 +276,21 @@ const ExplorePage = () => {
           departure_date: item.departure_date ?? 'N/A',
           return_date: item.return_date ?? '',
           is_round_trip: !!item.return_date,
-          avatar: profilesMap.get(item.user_id) || 'https://randomuser.me/api/portraits/men/1.jpg',
+          avatar:
+            profilesMap.get(item.user_id) ||
+            'https://randomuser.me/api/portraits/men/1.jpg',
           rating: avgRating,
           comment: latestComment,
         };
       });
       setTravelers(mappedTravelers);
-
     } catch (e) {
       console.error('Unexpected error:', e);
-      Toast.show({ type: 'error', text1: 'Error', text2: 'Unexpected error while fetching travelers.' });
+      Toast.show({
+        type: 'error',
+        text1: 'Error',
+        text2: 'Unexpected error while fetching travelers.',
+      });
     } finally {
       setLoadingTravelers(false);
     }
@@ -289,7 +307,7 @@ const ExplorePage = () => {
 
   const handleRequestDelivery = (travelerId: string) => {
     setTravelerId(travelerId);
-    router.push({ pathname: '/customProduct', params: { travelerId } });
+    router.push('/all-stores');
   };
 
   const openStore = (url: string, name: string) => {
@@ -315,9 +333,15 @@ const ExplorePage = () => {
         <Text style={styles.travelerName}>{item.name}</Text>
         {renderStars(item.rating)}
         {item.comment && <Text style={styles.commentText}>&quot;{item.comment}&quot;</Text>}
-        <Text style={styles.travelerRoute}>
-          {`${item.from} ➡️ ${item.to}`}
-        </Text>
+        <View style={styles.travelerRouteContainer}>
+          <Text style={styles.routeLocationText} numberOfLines={1} ellipsizeMode="tail">{item.from}</Text>
+          <View style={styles.routeLine}>
+            <View style={styles.routeCircle} />
+            <View style={styles.routeConnector} />
+            <View style={styles.routeCircle} />
+          </View>
+          <Text style={styles.routeLocationText} numberOfLines={1} ellipsizeMode="tail">{item.to}</Text>
+        </View>
         <View style={styles.tripDetailsRow}>
           <View style={styles.tripDetail}>
             <Text style={styles.tripLabel}>Departure</Text>
@@ -393,7 +417,13 @@ const ExplorePage = () => {
     <ScrollView style={styles.container}>
       <Image source={require('../../../assets/images/exploreimage.webp')} style={styles.bannerImage} />
       
-      <Text style={styles.sectionTitle}>Upcoming Travelers</Text>
+      <View style={styles.sectionHeader}>
+        <Text style={styles.sectionTitle}>Upcoming Travelers</Text>
+        <TouchableOpacity onPress={() => router.push('/travelPage')}>
+          <Text style={styles.addTripButton}>+ Add Trip</Text>
+        </TouchableOpacity>
+      </View>
+      
       {loadingTravelers ? (
           <ActivityIndicator size="large" color="#fff" style={{ marginVertical: 20 }} />
       ) : travelers.length === 0 ? (
@@ -482,13 +512,24 @@ const styles = StyleSheet.create({
     height: 300,
     resizeMode: 'cover',
   },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+  },
   sectionTitle: {
     fontSize: 18,
     fontWeight: '600',
-    marginLeft: 16,
     marginTop: 24,
     marginBottom: 12,
     color: '#fff',
+  },
+  addTripButton: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#fff',
+    marginTop: 12,
   },
   card: {
     width: width * 0.92,
@@ -591,10 +632,32 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
     marginBottom: 8,
   },
-  travelerRoute: {
+  travelerRouteContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 10,
+  },
+  routeLocationText: {
     fontSize: 14,
     color: '#ccc',
-    marginBottom: 10,
+    maxWidth: '45%', // Ensure text doesn't overflow
+  },
+  routeLine: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginHorizontal: 8,
+  },
+  routeConnector: {
+    height: 1.5,
+    flex: 1,
+    backgroundColor: '#007AFF',
+  },
+  routeCircle: {
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
+    backgroundColor: '#007AFF',
   },
   travelerBudget: {
     fontSize: 14,

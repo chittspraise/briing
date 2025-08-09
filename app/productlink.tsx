@@ -14,6 +14,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { useNavigation } from '@react-navigation/native';
 import { useLocalSearchParams, router } from 'expo-router';
 import { useTravelerOrderStore } from './store/travelerOrderStore';
+import { supabase } from '@/supabaseClient';
 
 type RootStackParamList = {
   ProductLink: undefined;
@@ -30,6 +31,7 @@ const ProductLinkPage = () => {
   const images = JSON.parse(params.images as string || '[]');
   const productNameFromParams = params.productName as string;
   const priceFromParams = params.price as string;
+  const orderId = params.orderId as string | undefined;
 
   const { setOrderDetails } = useTravelerOrderStore();
 
@@ -38,6 +40,31 @@ const ProductLinkPage = () => {
       useTravelerOrderStore.setState({ travelerId: travelerIdFromParams });
     }
   }, [travelerIdFromParams]);
+
+  useEffect(() => {
+    if (orderId) {
+      const fetchOrder = async () => {
+        const { data, error } = await supabase
+          .from('product_orders')
+          .select('*')
+          .eq('id', orderId)
+          .single();
+
+        if (data) {
+          setProductName(data.item_name);
+          setProductLink(data.store_url);
+          setPrice(data.price.toString());
+          setQuantity(data.quantity.toString());
+          setDescription(data.details);
+          setImageUris(data.image_url ? [data.image_url] : []);
+          setSelectedImage(data.image_url);
+          setIsGift(!data.with_box);
+        }
+      };
+      fetchOrder();
+    }
+  }, [orderId]);
+
 
   // Form state
   const [productLink, setProductLink] = useState(url);
@@ -76,8 +103,9 @@ const ProductLinkPage = () => {
       image_url: selectedImage,
       with_box: !isGift,
       details: description,
+      store_url: productLink,
     });
-    router.push('/DeliveryDetails');
+    router.push({ pathname: '/DeliveryDetails', params: { orderId: orderId } });
   };
 
   const openInStore = () => {

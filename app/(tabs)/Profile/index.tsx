@@ -6,6 +6,7 @@ import {
   Image,
   TouchableOpacity,
   ScrollView,
+  ImageBackground,
 } from 'react-native';
 import { Feather, Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
@@ -105,29 +106,35 @@ const ProfileScreen = () => {
   return (
     <ScrollView style={styles.container}>
       {/* Profile Header */}
-      <View style={styles.profileBanner}>
-        <Image
-          style={styles.avatar}
-          source={{ uri: avatarUrl }}
-        />
-        <View style={styles.profileInfo}>
-          <Text style={styles.name}>
-            {firstName || lastName ? `${firstName} ${lastName}` : 'Loading...'}
-          </Text>
-          <View style={styles.ratingContainer}>
-            <Text style={styles.ratingText}>{renderStars(rating)} ({rating.toFixed(1)})</Text>
+      <ImageBackground
+        source={require('@/assets/images/places.jpg')}
+        style={styles.profileBanner}
+        resizeMode="cover"
+      >
+        <View style={styles.bannerOverlay}>
+          <Image
+            style={styles.avatar}
+            source={{ uri: avatarUrl }}
+          />
+          <View style={styles.profileInfo}>
+            <Text style={styles.name}>
+              {firstName || lastName ? `${firstName} ${lastName}` : 'Loading...'}
+            </Text>
+            <View style={styles.ratingContainer}>
+              <Text style={styles.ratingText}>{renderStars(rating)} ({rating.toFixed(1)})</Text>
+            </View>
+            <TouchableOpacity onPress={() => navigation.navigate('profile')}>
+              <Text style={styles.editProfile}>Edit profile</Text>
+            </TouchableOpacity>
           </View>
-          <TouchableOpacity onPress={() => navigation.navigate('profile')}>
-            <Text style={styles.editProfile}>Edit profile</Text>
+          <TouchableOpacity
+            style={styles.walletIcon}
+            onPress={() => router.push('/(tabs)/Profile/settings/wallet')}
+          >
+            <Ionicons name="wallet-outline" size={28} color="#fff" />
           </TouchableOpacity>
         </View>
-        <TouchableOpacity
-          style={styles.walletIcon}
-          onPress={() => router.push('/(tabs)/Profile/settings/wallet')}
-        >
-          <Ionicons name="wallet-outline" size={28} color="#fff" />
-        </TouchableOpacity>
-      </View>
+      </ImageBackground>
 
       {/* Section: Account */}
       <View style={styles.section}>
@@ -207,13 +214,15 @@ const styles = StyleSheet.create({
     paddingTop: 50,
   },
   profileBanner: {
+    paddingBottom: 20,
+    marginBottom: 20,
+    height: 250,},
+  bannerOverlay: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 20,
-    paddingBottom: 20,
-    borderBottomWidth: 1,
-    borderColor: '#333',
-    marginBottom: 20,
+    paddingTop: 20, // Added padding top
+    backgroundColor: 'rgba(0,0,0,0.4)', // Added overlay
   },
   avatar: {
     width: 70,

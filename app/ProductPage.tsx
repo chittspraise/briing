@@ -39,47 +39,125 @@ const PaginationDots = ({
 );
 
 const ProductPage = () => {
-  const { orderId } = useLocalSearchParams();
+  const params = useLocalSearchParams();
   const [product, setProduct] = useState<any>(null);
+  const [orderCount, setOrderCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [relatedItems, setRelatedItems] = useState<any[]>([]);
   const [activeRelatedIndex, setActiveRelatedIndex] = useState(0);
+  const [matchingTraveler, setMatchingTraveler] = useState<any>(null);
 
+  // Effect to set the main product from params
   useEffect(() => {
-    if (orderId) {
-      fetchProductDetails();
-    }
-  }, [orderId]);
+    const fetchProductDetails = async (orderId: string) => {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('product_orders')
+        .select('*')
+        .eq('id', orderId)
+        .single();
 
-  const fetchProductDetails = async () => {
-    setLoading(true);
+      if (error) {
+        console.error('Error fetching product details:', error);
+        setProduct(null);
+      } else {
+        setProduct(data);
+      }
+      setLoading(false);
+    };
+
+    if (params.item_name) {
+      setProduct(params);
+      setLoading(false);
+    } else if (params.orderId) {
+      fetchProductDetails(params.orderId as string);
+    } else {
+      setLoading(false);
+      setProduct(null);
+    }
+  }, [params.item_name, params.orderId]);
+
+  // Effect to fetch related items and order count when product changes
+  useEffect(() => {
+    const fetchOrderCount = async (itemName: string) => {
+      if (!itemName) return;
+      const { count, error } = await supabase
+        .from('product_orders')
+        .select('id', { count: 'exact', head: true })
+        .eq('item_name', itemName);
+
+      if (error) {
+        console.error('Error fetching order count:', error);
+      } else {
+        setOrderCount(count || 0);
+      }
+    };
+
+    const fetchRelatedItems = async (store: string, productId: any) => {
+      if (!store || !productId) return;
+      const { data, error } = await supabase
+        .from('product_orders')
+        .select('*')
+        .eq('store', store)
+        .neq('id', productId)
+        .limit(5);
+
+      if (error) {
+        console.error('Error fetching related items:', error);
+      } else {
+        setRelatedItems(data || []);
+      }
+    };
+
+    const findMatchingTraveler = async (sourceCountry: string) => {
+      if (!sourceCountry) {
+        return;
+      }
+      // Trim whitespace from the source country
+      const trimmedCountry = sourceCountry.trim();
+
+      // Fetch the first matching traveler without using .single()
+      const { data, error } = await supabase
+        .from('travel')
+        .select('*')
+        .ilike('from_country', trimmedCountry)
+        .limit(1);
+
+      if (error) {
+        setMatchingTraveler(null);
+      } else if (data && data.length > 0) {
+        setMatchingTraveler(data[0]);
+      } else {
+        setMatchingTraveler(null);
+      }
+    };
+
+    if (product) {
+      fetchOrderCount(product.item_name);
+      fetchRelatedItems(product.store, product.id);
+      findMatchingTraveler(product.source_country);
+    } else {
+      setRelatedItems([]);
+      setOrderCount(0);
+      setMatchingTraveler(null);
+    }
+  }, [product]);
+
+  const findMatchingTraveler = async (sourceCountry: string) => {
+    if (!sourceCountry) return;
+    // Search for a traveler whose 'from_country' is an exact case-insensitive match.
     const { data, error } = await supabase
-      .from('product_orders')
+      .from('travel')
       .select('*')
-      .eq('id', orderId)
+      .ilike('from_country', sourceCountry)
+      .limit(1)
       .single();
 
     if (error) {
-      console.error('Error fetching product details:', error);
+      // This is expected if no match is found, so we don't log it as an error.
+      setMatchingTraveler(null);
     } else {
-      setProduct(data);
-      fetchRelatedItems(data.store);
-    }
-    setLoading(false);
-  };
-
-  const fetchRelatedItems = async (store: string) => {
-    const { data, error } = await supabase
-      .from('product_orders')
-      .select('*')
-      .eq('store', store)
-      .neq('id', orderId)
-      .limit(5);
-
-    if (error) {
-      console.error('Error fetching related items:', error);
-    } else {
-      setRelatedItems(data);
+      setMatchingTraveler(data);
     }
   };
 
@@ -138,8 +216,17 @@ const ProductPage = () => {
           <Text style={styles.link}>Buy from: {product.store}</Text>
         </TouchableOpacity>
         <Text style={styles.orderCount}>
-          {product.order_count || 0} people have ordered this
+          {orderCount} people have ordered this
         </Text>
+
+        {matchingTraveler && (
+          <View style={styles.travelerMatchContainer}>
+            <Ionicons name="airplane" size={24} color="#2E86DE" />
+            <Text style={styles.travelerMatchText}>
+              A traveler from {matchingTraveler.from_country} to {matchingTraveler.to_country} is ready to bring this for you!
+            </Text>
+          </View>
+        )}
 
         <TouchableOpacity
           style={styles.requestButton}
@@ -148,37 +235,7 @@ const ProductPage = () => {
           <Text style={styles.requestButtonText}>Request Item</Text>
         </TouchableOpacity>
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>
-            Pay up to 12 months installments
-          </Text>
-          <View style={styles.paymentLogos}>
-            <Image
-              source={{
-                uri: 'https://upload.wikimedia.org/wikipedia/commons/5/5e/Visa_Inc._logo.svg',
-              }}
-              style={styles.paymentLogo}
-            />
-            <Image
-              source={{
-                uri: 'https://upload.wikimedia.org/wikipedia/commons/2/2a/Mastercard-logo.svg',
-              }}
-              style={styles.paymentLogo}
-            />
-            <Image
-              source={{
-                uri: 'https://upload.wikimedia.org/wikipedia/commons/f/fa/American_Express_logo_%282018%29.svg',
-              }}
-              style={styles.paymentLogo}
-            />
-            <Image
-              source={{
-                uri: 'https://logowik.com/content/uploads/images/fnb-first-national-bank-new-20222658.jpg',
-              }}
-              style={styles.paymentLogo}
-            />
-          </View>
-        </View>
+        
 
         <View style={styles.section}>
           <View style={styles.featureSection}>
@@ -226,39 +283,41 @@ const ProductPage = () => {
           </View>
         </View>
 
-        <View style={styles.relatedItemsSection}>
-          <Text style={styles.sectionTitle}>Related Items</Text>
-          <FlatList
-            data={relatedItems}
-            horizontal
-            pagingEnabled
-            showsHorizontalScrollIndicator={false}
-            onScroll={handleScroll(setActiveRelatedIndex)}
-            keyExtractor={(item) => item.id.toString()}
-            renderItem={({ item }) => (
-              <TouchableOpacity
-                style={styles.relatedItemCard}
-                onPress={() =>
-                  router.push({
-                    pathname: '/ProductPage',
-                    params: { orderId: item.id },
-                  })
-                }
-              >
-                <Image
-                  source={{ uri: item.image_url }}
-                  style={styles.relatedItemImage}
-                />
-                <Text style={styles.relatedItemName}>{item.item_name}</Text>
-                <Text style={styles.relatedItemPrice}>ZAR{item.price}</Text>
-              </TouchableOpacity>
-            )}
-          />
-          <PaginationDots
-            count={relatedItems.length}
-            activeIndex={activeRelatedIndex}
-          />
-        </View>
+        {relatedItems && relatedItems.length > 0 && (
+          <View style={styles.relatedItemsSection}>
+            <Text style={styles.sectionTitle}>Related Items</Text>
+            <FlatList
+              data={relatedItems}
+              horizontal
+              pagingEnabled
+              showsHorizontalScrollIndicator={false}
+              onScroll={handleScroll(setActiveRelatedIndex)}
+              keyExtractor={(item) => item.id.toString()}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={styles.relatedItemCard}
+                  onPress={() =>
+                    router.push({
+                      pathname: '/ProductPage',
+                      params: { orderId: item.id },
+                    })
+                  }
+                >
+                  <Image
+                    source={{ uri: item.image_url }}
+                    style={styles.relatedItemImage}
+                  />
+                  <Text style={styles.relatedItemName}>{item.item_name}</Text>
+                  <Text style={styles.relatedItemPrice}>ZAR{item.price}</Text>
+                </TouchableOpacity>
+              )}
+            />
+            <PaginationDots
+              count={relatedItems.length}
+              activeIndex={activeRelatedIndex}
+            />
+          </View>
+        )}
       </View>
     </ScrollView>
   );
@@ -305,6 +364,20 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#888',
     marginBottom: 20,
+  },
+  travelerMatchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#1E3A5F',
+    padding: 15,
+    borderRadius: 10,
+    marginBottom: 20,
+  },
+  travelerMatchText: {
+    color: '#fff',
+    fontSize: 16,
+    marginLeft: 10,
+    flex: 1,
   },
   requestButton: {
     backgroundColor: '#fff',

@@ -77,7 +77,7 @@ const AuthScreen: React.FC = () => {
 
   return (
     <ImageBackground
-      source={require('@/assets/images/authscreenimage.jpg')}
+      source={require('@/assets/images/login.png')}
       style={styles.background}
     >
       <KeyboardAvoidingView

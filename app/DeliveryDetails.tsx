@@ -11,14 +11,16 @@ import {
 } from 'react-native';
 import Toast from 'react-native-toast-message';
 import { Picker } from '@react-native-picker/picker';
-import { useNavigation, useRoute } from '@react-navigation/native';
+import { useNavigation } from '@react-navigation/native';
+import { useLocalSearchParams } from 'expo-router';
 import { useTravelerOrderStore } from './store/travelerOrderStore';
+import { supabase } from '@/supabaseClient';
 
 const DeliveryDetailsPage = () => {
   const navigation = useNavigation<any>();
-  const route = useRoute();
-
-  const { travelerId } = route.params as { travelerId?: string | null } ?? {};
+  const params = useLocalSearchParams();
+  const travelerId = params.travelerId as string | undefined;
+  const orderId = params.orderId as string | undefined;
 
   const {
     deliver_from,
@@ -38,15 +40,32 @@ const DeliveryDetailsPage = () => {
   ];
 
   useEffect(() => {
-    // Set travelerId to store if it exists
     setTravelerId(travelerId ?? null);
   }, [travelerId]);
 
+  useEffect(() => {
+    if (orderId) {
+      const fetchOrderDetails = async () => {
+        const { data, error } = await supabase
+          .from('product_orders')
+          .select('source_country, destination, wait_time')
+          .eq('id', orderId)
+          .single();
+        
+        if (data) {
+          setDeliverFrom(data.source_country);
+          setDeliverTo(data.destination);
+          setWaitTime(data.wait_time);
+        }
+      };
+      fetchOrderDetails();
+    }
+  }, [orderId]);
+
   const proceedToSummary = () => {
     try {
-      setLoading(true)
+      setLoading(true);
 
-      // Save delivery details to store
       setDeliveryDetails({
         deliver_from: deliverFrom,
         destination: deliverTo,
@@ -55,8 +74,7 @@ const DeliveryDetailsPage = () => {
 
       setLoading(false);
 
-      // Navigate to productSummary with travelerId or without it
-      navigation.navigate('productSummary', travelerId ? { travelerId } : {});
+      navigation.navigate('productSummary', { travelerId, orderId });
     } catch (error) {
       setLoading(false);
       Toast.show({ type: 'error', text1: 'Error', text2: 'Could not save delivery details.' });

@@ -94,18 +94,17 @@ const HomeScreen: React.FC = () => {
 
   const fetchTrendingProducts = async () => {
     try {
-      const response = await fetch('https://dummyjson.com/products?limit=10');
-      const data = await response.json();
-      const products = data.products.map((p: any) => ({
-        item_name: p.title,
-        image_url: p.thumbnail,
-        price: p.price.toString(),
-        store: p.brand || 'Online Store',
-        source_country: 'Various',
-      }));
-      setTrendingProducts(products);
+      const { data, error } = await supabase
+        .from('product_orders')
+        .select('id, item_name, image_url, price, store, source_country')
+        .order('created_at', { ascending: false })
+        .limit(10);
+
+      if (error) throw error;
+
+      setTrendingProducts(data || []);
     } catch (error) {
-      console.error('Error fetching trending products from API:', error);
+      console.error('Error fetching trending products from Supabase:', error);
     }
   };
 
@@ -244,7 +243,7 @@ const HomeScreen: React.FC = () => {
             onPress={() => router.push('/travelPage')}
           >
             <Image
-              source={require('../../../assets/images/ChatGPT Image Jul 26, 2025, 09_31_10 AM.png')}
+              source={require('../../../assets/images/login.png')}
               style={styles.travelImage}
             />
             <View style={styles.travelOverlay}>
@@ -283,7 +282,7 @@ const HomeScreen: React.FC = () => {
             <FlatList
               data={trendingProducts}
               renderItem={renderTrendingProductCard}
-              keyExtractor={(item) => item.item_name}
+              keyExtractor={(item, index) => `${item.item_name}-${index}`}
               horizontal
               pagingEnabled
               showsHorizontalScrollIndicator={false}
