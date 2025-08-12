@@ -26,7 +26,7 @@ const DeliveryDetailsPage = () => {
     deliver_from,
     destination,
     wait_time,
-    setDeliveryDetails,
+    setOrderDetails,
     setTravelerId,
   } = useTravelerOrderStore();
 
@@ -66,7 +66,9 @@ const DeliveryDetailsPage = () => {
     try {
       setLoading(true);
 
-      setDeliveryDetails({
+      // Preserve existing order details while updating delivery info
+      setOrderDetails({
+        ...useTravelerOrderStore.getState(),
         deliver_from: deliverFrom,
         destination: deliverTo,
         wait_time: waitTime,

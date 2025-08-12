@@ -52,7 +52,9 @@ const ProductLinkPage = () => {
 
         if (data) {
           setProductName(data.item_name);
-          setProductLink(data.store_url);
+          if (data.product_url) {
+            setProductLink(data.product_url);
+          }
           setPrice(data.price.toString());
           setQuantity(data.quantity.toString());
           setDescription(data.details);
@@ -100,10 +102,10 @@ const ProductLinkPage = () => {
       store: name,
       price: price,
       quantity: quantity,
-      image_url: selectedImage,
+      image_url: selectedImage || '',
       with_box: !isGift,
       details: description,
-      store_url: productLink,
+      product_url: productLink,
     });
     router.push({ pathname: '/DeliveryDetails', params: { orderId: orderId } });
   };

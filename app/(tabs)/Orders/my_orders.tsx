@@ -6,6 +6,7 @@ import {
   Text,
   TouchableOpacity,
   View,
+  Linking,
 } from 'react-native';
 import Toast from 'react-native-toast-message';
 import { Ionicons } from '@expo/vector-icons';
@@ -25,7 +26,6 @@ type Order = {
   traveler_reward: number;
   estimated_total: number;
   platform_fee: number;
-  processing_fee: number;
   image_url?: string;
   created_at: string;
   status: string;
@@ -41,7 +41,7 @@ type Order = {
   images: string[];
   time: string;
   details: string | null;
-  store_url?: string;
+  product_url?: string;
 };
 
 type Rating = {
@@ -94,7 +94,7 @@ const MyOrdersPage = () => {
     setLoading(true);
     const { data: productOrders } = await supabase
       .from('product_orders')
-      .select('*')
+      .select('*, product_url')
       .order('created_at', { ascending: false });
 
     const { data: confirmedOrders } = await supabase.from('confirmed_orders').select('*');
@@ -241,31 +241,16 @@ const MyOrdersPage = () => {
       }
 
       if (newStatus === 'received' && order.traveler_id) {
-        const {
-          price: itemPrice,
-          vat_estimate,
-          traveler_reward,
-          estimated_total,
-          platform_fee,
-          processing_fee
-        } = order;
-
-        // Fee is 10% of the total checkout amount paid by the shopper.
-        const platformFeeForTraveler = estimated_total * 0.10;
-        
-        // The traveler's gross earning.
-        const travelerGross = itemPrice + traveler_reward;
-
-        // The final amount credited to the traveler's wallet.
-        const payoutAmount = travelerGross - platformFeeForTraveler;
+        const { price: itemPrice, traveler_reward } = order;
+        const payoutAmount = itemPrice + traveler_reward;
 
         const { data: profile, error: profileError } = await supabase
           .from('profiles')
           .select('wallet_balance')
           .eq('id', order.traveler_id)
           .single();
-        if (profileError) throw new Error(`Failed to fetch traveler profile: ${profileError.message}`);
-        if (!profile) throw new Error(`Traveler profile not found for id: ${order.traveler_id}`);
+        if (profileError) throw new Error(`Profile fetch failed: ${profileError.message}`);
+        if (!profile) throw new Error(`Profile not found for id: ${order.traveler_id}`);
         
         const newBalance = (profile.wallet_balance || 0) + payoutAmount;
 
@@ -273,19 +258,13 @@ const MyOrdersPage = () => {
           .from('profiles')
           .update({ wallet_balance: newBalance })
           .eq('id', order.traveler_id);
-        if (updateError) throw new Error(`Failed to update traveler wallet: ${updateError.message}`);
-        
-        const transactionDescription = `Shopper Checkout Breakdown:\n` +
+        if (updateError) throw new Error(`Balance update failed: ${updateError.message}`);
+
+        const transactionDescription = `Traveler Payout Breakdown:\n` +
           `Item Price: ZAR ${itemPrice.toFixed(2)}\n` +
-          `VAT (Est.): ZAR ${vat_estimate.toFixed(2)}\n` +
-          `Platform Fee: ZAR ${platform_fee.toFixed(2)}\n` +
-          `Processing Fee: ZAR ${processing_fee.toFixed(2)}\n` +
-          `Traveler Reward: ZAR ${traveler_reward.toFixed(2)}\n` +
+          `Your Reward: ZAR ${traveler_reward.toFixed(2)}\n` +
           `--------------------\n` +
-          `Total Checkout: ZAR ${estimated_total.toFixed(2)}\n\n` +
-          `Your Payout:\n` +
-          `Platform Fee @ 10% of Total: -ZAR ${platformFeeForTraveler.toFixed(2)}\n` +
-          `Net Amount Credited: ZAR ${payoutAmount.toFixed(2)}`;
+          `Total Payout: ZAR ${payoutAmount.toFixed(2)}`;
         
         const { error: transactionError } = await supabase
           .from('wallet_transactions')
@@ -296,14 +275,14 @@ const MyOrdersPage = () => {
             description: transactionDescription,
             source: `order_${order.id}`,
           }]);
-        if (transactionError) throw new Error(`Failed to create transaction record: ${transactionError.message}`);
+        if (transactionError) throw new Error(`Transaction insert failed: ${transactionError.message}`);
 
         Toast.show({ type: 'success', text1: 'Traveler Credited', text2: `ZAR ${payoutAmount.toFixed(2)} has been paid.` });
       }
 
     } catch (e: any) {
       console.error('Error during status update process:', e);
-      Toast.show({ type: 'error', text1: 'Error', text2: e.message || 'An unexpected error occurred.' });
+      Toast.show({ type: 'error', text1: 'Status Update Failed', text2: e.message || 'An unexpected error occurred.' });
     } finally {
       if (currentUserId) {
         fetchOrders(currentUserId);
@@ -312,7 +291,7 @@ const MyOrdersPage = () => {
   };
 
   const handleCheckout = async (order: Order) => {
-    const total = order.estimated_total;
+    const total = order.price + order.platform_fee + order.traveler_reward;
     try {
       await setupStripePaymentSheet(total);
       await openStripeCheckout();
@@ -367,6 +346,8 @@ const MyOrdersPage = () => {
       }
       statusOptions.push('cancel');
     }
+
+    const displayTotal = item.price + item.platform_fee + item.traveler_reward;
 
     return (
       <View style={styles.card}>
@@ -498,12 +479,20 @@ const MyOrdersPage = () => {
           <Text style={styles.price}>R{item.traveler_reward.toFixed(2)}</Text>
         </View>
         <Text style={styles.productDetail}>Price: R{item.price.toFixed(2)}</Text>
-        <Text style={styles.productDetail}>VAT (Est.): R{item.vat_estimate.toFixed(2)}</Text>
-        <Text style={styles.productDetail}>Platform Fee: R{(item.price * 0.05).toFixed(2)}</Text>
-        <Text style={styles.productDetail}>Processing Fee: R{(item.price * 0.05).toFixed(2)}</Text>
+        <Text style={styles.productDetail}>Platform Fee: R{(item.platform_fee).toFixed(2)}</Text>
+
+        {item.product_url && (
+          <TouchableOpacity
+            style={styles.linkButton}
+            onPress={() => Linking.openURL(item.product_url)}
+          >
+            <Text style={styles.linkButtonText}>View Product</Text>
+          </TouchableOpacity>
+        )}
+
         <View style={styles.totalContainer}>
           <Text style={styles.totalLabel}>Total:</Text>
-          <Text style={styles.totalAmount}>R{item.estimated_total.toFixed(2)}</Text>
+          <Text style={styles.totalAmount}>R{displayTotal.toFixed(2)}</Text>
         </View>
         <Text style={styles.label}>Store:</Text>
         <Text style={styles.value}>{item.store}</Text>
@@ -640,6 +629,7 @@ const styles = StyleSheet.create({
     height: 90,
     marginRight: 8,
     borderRadius: 8,
+    resizeMode: 'contain',
   },
   price: {
     color: 'green',
@@ -727,6 +717,17 @@ const styles = StyleSheet.create({
   },
   editButtonText: {
     color: '#000',
+    fontWeight: 'bold',
+  },
+  linkButton: {
+    backgroundColor: '#333',
+    paddingVertical: 10,
+    borderRadius: 6,
+    marginBottom: 16,
+    alignItems: 'center',
+  },
+  linkButtonText: {
+    color: '#fff',
     fontWeight: 'bold',
   },
 });

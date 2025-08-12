@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   Image,
   FlatList,
+  Linking,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '@/supabaseClient';
@@ -95,7 +96,8 @@ const OrderPage = () => {
         image_url,
         user_id,
         store,
-        details
+        details,
+        product_url
       `)
       .eq('status', 'pending')
       .order('created_at', { ascending: false });
@@ -166,7 +168,7 @@ const OrderPage = () => {
         avatar:
           profile?.image_url && profile.image_url.trim() !== ''
             ? profile.image_url
-            : 'https://randomuser.me/api/portraits/lego/1.jpg',
+            : `https://i.pravatar.cc/150?u=${order.user_id}`,
         rating: avgRating,
         images:
           order.image_url && order.image_url.trim() !== ''
@@ -325,6 +327,15 @@ const OrderPage = () => {
               <Text style={styles.product}>
                 Price: ZAR{item.price} + Tax: ZAR{item.vat_estimate}
               </Text>
+
+              {item.product_url && (
+                <TouchableOpacity
+                  style={styles.linkButton}
+                  onPress={() => Linking.openURL(item.product_url)}
+                >
+                  <Text style={styles.linkButtonText}>View Product</Text>
+                </TouchableOpacity>
+              )}
 
               <TouchableOpacity
                 style={styles.offerButton}
@@ -492,6 +503,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
     color: '#fff',
+    flexShrink: 1,
   },
   quantityText: {
     fontSize: 16,
@@ -504,6 +516,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     marginRight: 10,
     backgroundColor: '#222',
+    resizeMode: 'contain',
   },
   price: {
     fontSize: 28,
@@ -528,6 +541,17 @@ const styles = StyleSheet.create({
   },
   offerButtonText: {
     color: '#000',
+    textAlign: 'center',
+    fontWeight: 'bold',
+  },
+  linkButton: {
+    backgroundColor: '#333',
+    paddingVertical: 10,
+    borderRadius: 6,
+    marginBottom: 16,
+  },
+  linkButtonText: {
+    color: '#fff',
     textAlign: 'center',
     fontWeight: 'bold',
   },

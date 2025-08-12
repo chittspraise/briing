@@ -115,6 +115,7 @@ const ProductLinkPage = () => {
       details,
       with_box: withBox,
       image_url: images.join(','),
+      product_url: linkUrl,
     });
 
     setLoading(false);
@@ -205,17 +206,7 @@ const ProductLinkPage = () => {
         onChangeText={setDetails}
       />
 
-      <View style={styles.switchRow}>
-        <Text style={styles.label}>With box</Text>
-        <Switch
-          value={withBox}
-          onValueChange={setWithBox}
-          thumbColor={withBox ? '#000' : '#ccc'}
-        />
-      </View>
-      <Text style={styles.subText}>
-        Requiring the box may reduce offers. Travelers prefer saving space.
-      </Text>
+      
 
       <TouchableOpacity
         style={[styles.button, loading && { opacity: 0.6 }]}

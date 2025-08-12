@@ -190,6 +190,9 @@ const ConfirmOrder = () => {
       </ScrollView>
 
       <View style={styles.footer}>
+        <Text style={styles.taxWarning}>
+          Note: Any applicable customs/import taxes must be covered by your reward. Please ensure it's worth your effort.
+        </Text>
         <BouncyCheckbox
           size={22}
           fillColor="#00C753"
@@ -273,6 +276,13 @@ const styles = StyleSheet.create({
     color: '#000',
     fontWeight: 'bold',
     textAlign: 'center',
+  },
+  taxWarning: {
+    color: '#FFD700', // Gold color for warning
+    fontSize: 13,
+    textAlign: 'center',
+    paddingHorizontal: 10,
+    marginBottom: 15,
   },
   loadingContainer: {
     flex: 1,

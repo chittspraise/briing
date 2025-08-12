@@ -22,8 +22,6 @@ export default function SummaryPage() {
   const params = useLocalSearchParams();
   const orderId = params.orderId as string | undefined;
 
-  const [order, setOrder] = useState<any>(null);
-
   const {
     item_name,
     store,
@@ -32,6 +30,7 @@ export default function SummaryPage() {
     details,
     with_box,
     image_url,
+    product_url,
     deliver_from,
     destination,
     wait_time,
@@ -42,24 +41,6 @@ export default function SummaryPage() {
   const [travelerReward, setTravelerReward] = useState('');
   const [userId, setUserId] = useState<string | null>(null);
   const [displayQuantity, setDisplayQuantity] = useState(parseInt(quantity || '1', 10));
-
-  useEffect(() => {
-    if (orderId) {
-      const fetchOrder = async () => {
-        const { data, error } = await supabase
-          .from('product_orders')
-          .select('*')
-          .eq('id', orderId)
-          .single();
-        if (data) {
-          setOrder(data);
-          setDisplayQuantity(data.quantity);
-          setTravelerReward(data.traveler_reward.toString());
-        }
-      };
-      fetchOrder();
-    }
-  }, [orderId]);
 
   const handleQuantityChange = (amount: number) => {
     const newQuantity = Math.max(1, displayQuantity + amount);
@@ -78,12 +59,11 @@ export default function SummaryPage() {
   }, []);
 
   // Calculate fees and totals
-  const numericPrice = (parseFloat(order?.price || price || '0') || 0) * displayQuantity;
+  const numericPrice = (parseFloat(price || '0') || 0) * displayQuantity;
   const platformFee = Math.round(numericPrice * 0.05 * 100) / 100;
-  const processingFee = Math.round(numericPrice * 0.05 * 100) / 100;
   const vatEstimate = Math.round(numericPrice * 0.15 * 100) / 100;
   const reward = parseFloat(travelerReward || '0') || 0;
-  const estimatedTotal = numericPrice + platformFee + processingFee + vatEstimate + reward;
+  const estimatedTotal = numericPrice + platformFee + reward;
 
   // Submit order to Supabase
   const handleRequestDelivery = async () => {
@@ -93,23 +73,23 @@ export default function SummaryPage() {
     }
 
     const payload = {
-      item_name: order?.item_name || item_name,
-      store: order?.store || store || null,
+      item_name: item_name,
+      store: store || null,
       price: numericPrice,
       quantity: displayQuantity,
-      details: order?.details || details,
-      with_box: order?.with_box || with_box,
-      image_url: order?.image_url || image_url,
-      source_country: order?.source_country || deliver_from,
-      destination: order?.destination || destination,
-      wait_time: order?.wait_time || wait_time,
+      details: details,
+      with_box: with_box,
+      image_url: image_url,
+      product_url: product_url,
+      source_country: deliver_from,
+      destination: destination,
+      wait_time: wait_time,
       platform_fee: platformFee,
-      processing_fee: processingFee,
       vat_estimate: vatEstimate,
       traveler_reward: reward,
       estimated_total: estimatedTotal,
       user_id: userId,
-      traveler_id: order?.traveler_id || travelerId || null,
+      traveler_id: travelerId || null,
       status: 'pending',
     };
 
@@ -159,14 +139,14 @@ export default function SummaryPage() {
       <ScrollView style={styles.scrollViewContent}>
         {/* Product Card */}
         <View style={styles.productCard}>
-          {(order?.image_url || image_url) ? (
-            <Image source={{ uri: order?.image_url || image_url }} style={styles.productImage} />
+          {(image_url) ? (
+            <Image source={{ uri: image_url }} style={styles.productImage} />
           ) : (
             <View style={styles.productLogoContainer}>
               <MaterialCommunityIcons name="cube-outline" size={30} color="white" />
             </View>
           )}
-          <Text style={styles.productTitle}>{order?.item_name || item_name || 'N/A'}</Text>
+          <Text style={styles.productTitle}>{item_name || 'N/A'}</Text>
         </View>
 
         {/* Delivery Info */}
@@ -174,20 +154,20 @@ export default function SummaryPage() {
           <Text style={styles.label}>Delivery route</Text>
           <View style={styles.detailRow}>
             <Text style={styles.subLabel}>Deliver from</Text>
-            <Text style={styles.value}>{order?.source_country || deliver_from || 'N/A'}</Text>
+            <Text style={styles.value}>{deliver_from || 'N/A'}</Text>
           </View>
           <View style={styles.detailRow}>
             <Text style={styles.subLabel}>Deliver to</Text>
-            <Text style={styles.value}>{order?.destination || destination || 'N/A'}</Text>
+            <Text style={styles.value}>{destination || 'N/A'}</Text>
           </View>
           <View style={styles.detailRow}>
             <Text style={styles.subLabel}>Wait time</Text>
-            <Text style={styles.value}>{order?.wait_time || wait_time || 'N/A'}</Text>
+            <Text style={styles.value}>{wait_time || 'N/A'}</Text>
           </View>
           <View style={styles.detailRow}>
             <Text style={styles.subLabel}>Delivery type</Text>
             <Text style={styles.value}>
-              {(order?.traveler_id || travelerId) ? 'Private (specific traveler)' : 'Open to any traveler'}
+              {(travelerId) ? 'Private (specific traveler)' : 'Open to any traveler'}
             </Text>
           </View>
         </View>
@@ -209,18 +189,18 @@ export default function SummaryPage() {
           </View>
           <View style={styles.detailRow}>
             <Text style={styles.subLabel}>Packaging</Text>
-            <Text style={styles.value}>{(order?.with_box || with_box) ? 'With box' : 'Without box'}</Text>
+            <Text style={styles.value}>{(with_box) ? 'With box' : 'Without box'}</Text>
           </View>
           <View style={styles.detailRow}>
             <Text style={styles.subLabel}>Store</Text>
-            <Text style={styles.value}>{order?.store || store || 'N/A'}</Text>
+            <Text style={styles.value}>{store || 'N/A'}</Text>
           </View>
         </View>
 
         {/* Description */}
         <View style={styles.section}>
           <Text style={styles.label}>Product details</Text>
-          <Text style={styles.value}>{order?.details || details || 'No details provided'}</Text>
+          <Text style={styles.value}>{details || 'No details provided'}</Text>
         </View>
 
         {/* Reward */}
@@ -243,17 +223,29 @@ export default function SummaryPage() {
           <Text style={styles.label}>Cost breakdown</Text>
           {[
             { label: `Product price (x${displayQuantity})`, value: `ZAR${numericPrice.toFixed(2)}` },
-            { label: 'VAT (estimated)', value: `ZAR${vatEstimate.toFixed(2)}` },
             { label: 'Platform fee', value: `ZAR${platformFee.toFixed(2)}` },
-            { label: 'Processing fee', value: `ZAR${processingFee.toFixed(2)}` },
             { label: 'Traveler reward', value: `ZAR${reward.toFixed(2)}` },
-            { label: 'Estimated total', value: `ZAR${estimatedTotal.toFixed(2)}` },
           ].map((item, index) => (
             <View key={index} style={styles.detailRow}>
               <Text style={styles.subLabel}>{item.label}</Text>
               <Text style={styles.value}>{item.value}</Text>
             </View>
           ))}
+          <View style={styles.detailRow}>
+            <Text style={[styles.subLabel, { color: '#888' }]}>VAT (estimated, not included in total)</Text>
+            <Text style={[styles.value, { color: '#888' }]}>ZAR{vatEstimate.toFixed(2)}</Text>
+          </View>
+          <View style={[styles.detailRow, { borderBottomWidth: 0, paddingTop: 15 }]}>
+            <Text style={styles.subLabel}>Estimated total</Text>
+            <Text style={[styles.value, { fontWeight: 'bold', fontSize: 16 }]}>ZAR{estimatedTotal.toFixed(2)}</Text>
+          </View>
+        </View>
+
+        <View style={styles.warningBox}>
+          <Ionicons name="warning-outline" size={20} color="#FFA000" style={{ marginRight: 10 }} />
+          <Text style={styles.warningText}>
+            The traveler reward should account for any applicable VAT. The total charged at checkout will not include the VAT estimate.
+          </Text>
         </View>
       </ScrollView>
 
@@ -393,5 +385,18 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     flex: 1,
     textAlign: 'center',
+  },
+  warningBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFBEA',
+    borderRadius: 8,
+    padding: 15,
+    marginBottom: 15,
+  },
+  warningText: {
+    flex: 1,
+    fontSize: 13,
+    color: '#8D6E63',
   },
 });

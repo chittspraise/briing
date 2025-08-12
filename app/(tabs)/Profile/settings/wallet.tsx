@@ -25,7 +25,7 @@ interface Transaction {
 
 const WalletScreen: React.FC = () => {
   const router = useRouter();
-  const [balance, setBalance] = useState<string | null>(null);
+  const [balance, setBalance] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [modalVisible, setModalVisible] = useState(false);
   const [cashOutAmount, setCashOutAmount] = useState('');
@@ -45,7 +45,7 @@ const WalletScreen: React.FC = () => {
 
         if (profileError) throw profileError;
         if (profileData) {
-          setBalance(`ZAR ${profileData.wallet_balance.toFixed(2)}`);
+          setBalance(profileData.wallet_balance);
         }
 
         // Fetch transactions
@@ -124,7 +124,7 @@ const WalletScreen: React.FC = () => {
           {loading ? (
             <ActivityIndicator size="large" color="#000000" />
           ) : (
-            <Text style={styles.balanceAmount}>{balance ?? 'ZAR 0.00'}</Text>
+            <Text style={styles.balanceAmount}>ZAR {balance !== null ? balance.toFixed(2) : '0.00'}</Text>
           )}
         </View>
         <TouchableOpacity style={styles.cashOutButton} onPress={() => setModalVisible(true)}>
@@ -261,7 +261,7 @@ const styles = StyleSheet.create({
         color: '#121212',
     },
     cashOutButton: {
-        backgroundColor: '#000000',
+        backgroundColor: 'green',
         paddingVertical: 12,
         paddingHorizontal: 16,
         borderRadius: 8,
@@ -424,5 +424,4 @@ const styles = StyleSheet.create({
 });
 
 export default WalletScreen;
-
 

@@ -124,7 +124,8 @@ const HomeScreen: React.FC = () => {
         image_url,
         user_id,
         store,
-        details
+        details,
+        product_url
       `)
       .eq('status', 'pending')
       .order('created_at', { ascending: false });
@@ -167,7 +168,7 @@ const HomeScreen: React.FC = () => {
         avatar:
           profile?.image_url && profile.image_url.trim() !== ''
             ? profile.image_url
-            : 'https://randomuser.me/api/portraits/lego/1.jpg',
+            : `https://i.pravatar.cc/150?u=${order.user_id}`,
         rating: 4,
         images:
           order.image_url && order.image_url.trim() !== ''
@@ -348,6 +349,15 @@ const HomeScreen: React.FC = () => {
                 <Text style={styles.product}>
                   Price: ZAR{item.price} + Tax: ZAR{item.vat_estimate}
                 </Text>
+
+                {item.product_url && (
+                  <TouchableOpacity
+                    style={styles.linkButton}
+                    onPress={() => Linking.openURL(item.product_url)}
+                  >
+                    <Text style={styles.linkButtonText}>View Product</Text>
+                  </TouchableOpacity>
+                )}
 
                 <TouchableOpacity
                   style={styles.offerButton}
@@ -596,6 +606,17 @@ const styles = StyleSheet.create({
   },
   offerButtonText: {
     color: '#000',
+    fontWeight: 'bold',
+    textAlign: 'center',
+  },
+  linkButton: {
+    backgroundColor: '#333',
+    padding: 10,
+    borderRadius: 8,
+    marginBottom: 10,
+  },
+  linkButtonText: {
+    color: '#fff',
     fontWeight: 'bold',
     textAlign: 'center',
   },

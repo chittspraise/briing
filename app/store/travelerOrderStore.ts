@@ -15,9 +15,9 @@ interface TravelerOrderState {
   quantity: string;
   details: string;
   with_box: boolean;
-  image_url: string;
-
-  deliver_from: string | null;
+  image_url?: string;
+  product_url?: string;
+  deliver_from?: string;
   destination: string | null;
   wait_time: string | null;
 
@@ -25,25 +25,7 @@ interface TravelerOrderState {
 
   setTravelerId: (id: string | null) => void;
 
-  setOrderDetails: (data: {
-    traveler_id?: string | null;
-    item_name: string;
-    store?: string | null;
-    price: string;
-    quantity: string;
-    details: string;
-    with_box: boolean;
-    image_url: string;
-    custom_products?: Product[];
-  }) => void;
-
-  setDeliveryDetails: (data: {
-    deliver_from: string;
-    destination: string;
-    wait_time: string;
-  }) => void;
-
-  setCustomProducts: (products: Product[]) => void;
+  setOrderDetails: (data: Partial<TravelerOrderState>) => void;
 
   clearOrder: () => void;
 }
@@ -58,6 +40,7 @@ export const useTravelerOrderStore = create<TravelerOrderState>((set) => ({
   details: '',
   with_box: false,
   image_url: '',
+  product_url: '',
 
   deliver_from: null,
   destination: null,
@@ -71,56 +54,10 @@ export const useTravelerOrderStore = create<TravelerOrderState>((set) => ({
     set({ travelerId: cleanId });
   },
 
-  setOrderDetails: ({
-    traveler_id,
-    item_name,
-    store,
-    price,
-    quantity,
-    details,
-    with_box,
-    image_url,
-    custom_products,
-  }) => {
-    const cleanTravelerId = traveler_id && traveler_id.trim() !== '' ? traveler_id : null;
-
-    console.log('Setting order details:', {
-      traveler_id: cleanTravelerId,
-      item_name,
-      store,
-      price,
-      quantity,
-      details,
-      with_box,
-      image_url,
-      custom_products,
-    });
-
+  setOrderDetails: (data) => {
     set((state) => ({
       ...state,
-      travelerId: cleanTravelerId,  // <--- update travelerId even if null
-      item_name,
-      store: store ?? null,
-      price,
-      quantity,
-      details,
-      with_box,
-      image_url,
-      custom_products: custom_products ?? state.custom_products,
-    }));
-  },
-
-  setDeliveryDetails: ({ deliver_from, destination, wait_time }) => {
-    console.log('Setting delivery details:', {
-      deliver_from,
-      destination,
-      wait_time,
-    });
-    set((state) => ({
-      ...state,
-      deliver_from,
-      destination,
-      wait_time,
+      ...data,
     }));
   },
 
@@ -140,6 +77,7 @@ export const useTravelerOrderStore = create<TravelerOrderState>((set) => ({
       details: '',
       with_box: false,
       image_url: '',
+      product_url: '',
       deliver_from: null,
       destination: null,
       wait_time: null,
