@@ -60,6 +60,7 @@ const AuthScreen: React.FC = () => {
             first_name: firstName.trim(),
             last_name: lastName.trim(),
             phone: phone.trim(),
+            image_url: 'https://rjntkaamdisyykpgjezm.supabase.co/storage/v1/object/sign/profilepicture/placeholder.jpg?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV9jZTRjMzFlMy01NjE5LTQ4NTItOWIzZC1jNTA2ZTgwMTU0YzciLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJwcm9maWxlcGljdHVyZS9wbGFjZWhvbGRlci5qcGciLCJpYXQiOjE3NTU2MDU0NTEsImV4cCI6MTc4NzE0MTQ1MX0.y3HuWak9udEKZHq8hvu77Jc9GaRKzrqiCi75qUQCPVI',
           });
 
         if (profileError) throw profileError;
@@ -68,7 +69,6 @@ const AuthScreen: React.FC = () => {
         router.replace('/(tabs)/Home');
       }
     } catch (err: any) {
-      console.log('Error:', err); // 🔍 Full error in console
       Toast.show({ type: 'error', text1: 'Error', text2: err.message || 'Something went wrong.' });
     } finally {
       setLoading(false);

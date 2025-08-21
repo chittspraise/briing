@@ -22,21 +22,24 @@ type Message = {
   receiver_id: string;
   message: string;
   created_at: string;
+  status: 'sent' | 'delivered' | 'read';
 };
 
 export default function ChatPage() {
-  const { chatId, receiverId, otherUserName, otherUserAvatar } = useLocalSearchParams<{
+  const { chatId, receiverId, otherUserName, otherUserAvatar, rating, productName, productImage } = useLocalSearchParams<{
     chatId: string;
     receiverId: string;
     otherUserName: string;
     otherUserAvatar: string;
+    rating: string;
+    productName: string;
+    productImage: string;
   }>();
   const router = useRouter();
 
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
-  const [rating, setRating] = useState<number | null>(null);
   const flatListRef = useRef<FlatList>(null);
 
   useEffect(() => {
@@ -52,28 +55,20 @@ export default function ChatPage() {
   }, []);
 
   useEffect(() => {
-    if (receiverId) {
-      const fetchUserRating = async () => {
-        const { data: ratingsData, error: ratingsError } = await supabase
-          .from('ratings')
-          .select('rating')
-          .eq('rated_id', receiverId);
+    if (!chatId || !currentUserId) return;
 
-        if (ratingsError) {
-          console.error('Error fetching ratings:', ratingsError);
-          setRating(0); // Default to 0 on error
-        } else if (ratingsData && ratingsData.length > 0) {
-          const avg = ratingsData.reduce((acc, item) => acc + item.rating, 0) / ratingsData.length;
-          setRating(avg);
-        } else {
-          setRating(0); // Default rating if none found
-        }
-      };
+    const markAsRead = async () => {
+      const { error } = await supabase.rpc('mark_messages_as_read', {
+        p_chat_id: chatId,
+        p_user_id: currentUserId,
+      });
+      if (error) {
+        console.error('Failed to mark messages as read:', error);
+      }
+    };
 
-      fetchUserRating();
-    }
-  }, [receiverId]);
-
+    markAsRead();
+  }, [chatId, currentUserId]);
 
   useEffect(() => {
     if (!chatId) return;
@@ -102,13 +97,21 @@ export default function ChatPage() {
       .on(
         'postgres_changes',
         {
-          event: 'INSERT',
+          event: '*',
           schema: 'public',
           table: 'messages',
           filter: `chat_id=eq.${chatId}`,
         },
         (payload) => {
-          setMessages((prev) => [...prev, payload.new as Message]);
+          if (payload.eventType === 'INSERT') {
+            setMessages((prev) => [...prev, payload.new as Message]);
+          } else if (payload.eventType === 'UPDATE') {
+            setMessages((prev) =>
+              prev.map((msg) =>
+                msg.id === payload.old.id ? (payload.new as Message) : msg
+              )
+            );
+          }
           flatListRef.current?.scrollToEnd({ animated: true });
         }
       )
@@ -128,6 +131,7 @@ export default function ChatPage() {
         sender_id: currentUserId,
         receiver_id: receiverId,
         message: input.trim(),
+        status: 'sent',
       },
     ]);
 
@@ -142,6 +146,16 @@ export default function ChatPage() {
   const renderMessage = ({ item }: { item: Message }) => {
     const isOwn = item.sender_id === currentUserId;
 
+    const getStatusIcon = () => {
+      if (item.status === 'read') {
+        return <Ionicons name="checkmark-done" size={16} color="#34B7F1" />;
+      }
+      if (item.status === 'delivered') {
+        return <Ionicons name="checkmark-done" size={16} color="#ccc" />;
+      }
+      return <Ionicons name="checkmark" size={16} color="#ccc" />;
+    };
+
     return (
       <View
         style={[
@@ -150,12 +164,15 @@ export default function ChatPage() {
         ]}
       >
         <Text style={styles.messageText}>{item.message}</Text>
-        <Text style={styles.timestamp}>
-          {new Date(item.created_at).toLocaleTimeString([], {
-            hour: '2-digit',
-            minute: '2-digit',
-          })}
-        </Text>
+        <View style={styles.messageInfo}>
+          <Text style={styles.timestamp}>
+            {new Date(item.created_at).toLocaleTimeString([], {
+              hour: '2-digit',
+              minute: '2-digit',
+            })}
+          </Text>
+          {isOwn && getStatusIcon()}
+        </View>
       </View>
     );
   };
@@ -188,9 +205,9 @@ export default function ChatPage() {
               {otherUserName ?? 'user'}
             </Text>
             <View style={styles.headerStats}>
-              {rating !== null ? (
+              {rating ? (
                 <Text style={styles.statText}>
-                  ⭐ {rating.toFixed(1)}
+                  ⭐ {parseFloat(rating).toFixed(1)}
                 </Text>
               ) : <Text style={styles.statText}>⭐ N/A</Text>}
             </View>
@@ -204,6 +221,21 @@ export default function ChatPage() {
           keyExtractor={(item) => item.id}
           renderItem={renderMessage}
           contentContainerStyle={styles.messagesContainer}
+          ListHeaderComponent={
+            productName ? (
+              <TouchableOpacity onPress={() => router.push('/(tabs)/Orders/my_orders')}>
+                <View style={styles.productInfoContainer}>
+                  {productImage && (
+                    <Image
+                      source={{ uri: productImage }}
+                      style={styles.productImage}
+                    />
+                  )}
+                  <Text style={styles.productName} numberOfLines={2}>{productName}</Text>
+                </View>
+              </TouchableOpacity>
+            ) : null
+          }
           onContentSizeChange={() =>
             flatListRef.current?.scrollToEnd({ animated: true })
           }
@@ -268,8 +300,28 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginRight: 10,
   },
-  messagesContainer: {
+  productInfoContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
     padding: 12,
+    backgroundColor: '#1a1a1a',
+    borderRadius: 8,
+    margin: 12,
+  },
+  productImage: {
+    width: 50,
+    height: 50,
+    borderRadius: 8,
+    marginRight: 12,
+  },
+  productName: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+    flexShrink: 1,
+  },
+  messagesContainer: {
+    paddingHorizontal: 12,
     paddingBottom: 30,
   },
   messageBubble: {
@@ -292,11 +344,16 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
   },
+  messageInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    marginTop: 4,
+  },
   timestamp: {
     color: '#ccc',
     fontSize: 10,
-    marginTop: 4,
-    textAlign: 'right',
+    marginRight: 6,
   },
   inputContainer: {
     flexDirection: 'row',

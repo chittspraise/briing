@@ -5,7 +5,7 @@ import { StyleSheet, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 const StorePage = () => {
-  const { url, name } = useLocalSearchParams<{ url: string, name: string }>();
+  const { url, name, travelerId } = useLocalSearchParams<{ url: string, name: string, travelerId?: string }>();
   const [currentUrl, setCurrentUrl] = useState(url);
   const webviewRef = useRef<WebView>(null);
 
@@ -79,6 +79,7 @@ const StorePage = () => {
           images: JSON.stringify(images),
           productName: productName,
           price: price,
+          travelerId,
         } 
       });
     }

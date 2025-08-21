@@ -50,7 +50,6 @@ const moveDirectories = async (userInput) => {
     if (userInput === "y") {
       // Create the app-example directory
       await fs.promises.mkdir(exampleDirPath, { recursive: true });
-      console.log(`📁 /${exampleDir} directory created.`);
     }
 
     // Move old directories to new app-example directory or delete them
@@ -69,7 +68,6 @@ const moveDirectories = async (userInput) => {
     // Create new /app directory
     const newAppDirPath = path.join(root, newAppDir);
     await fs.promises.mkdir(newAppDirPath, { recursive: true });
-    console.log("\n📁 New /app directory created.");
 
     // Create index.tsx
     const indexPath = path.join(newAppDirPath, "index.tsx");
@@ -79,16 +77,7 @@ const moveDirectories = async (userInput) => {
     const layoutPath = path.join(newAppDirPath, "_layout.tsx");
     await fs.promises.writeFile(layoutPath, layoutContent);
 
-    console.log("\n✅ Project reset complete. Next steps:");
-    console.log(
-      `1. Run \`npx expo start\` to start a development server.\n2. Edit app/index.tsx to edit the main screen.${
-        userInput === "y"
-          ? `\n3. Delete the /${exampleDir} directory when you're done referencing it.`
-          : ""
-      }`
-    );
   } catch (error) {
-    console.error(`❌ Error during script execution: ${error.message}`);
   }
 };
 
@@ -99,7 +88,6 @@ rl.question(
     if (userInput === "y" || userInput === "n") {
       moveDirectories(userInput).finally(() => rl.close());
     } else {
-      console.log("❌ Invalid input. Please enter 'Y' or 'N'.");
       rl.close();
     }
   }

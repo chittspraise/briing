@@ -1,7 +1,3 @@
--- First, drop the existing function
-DROP FUNCTION get_conversations(uuid);
-
--- Now recreate the function with the full return type
 CREATE OR REPLACE FUNCTION get_conversations(user_id_param uuid)
 RETURNS TABLE(
   id text,
@@ -36,13 +32,13 @@ BEGIN
     cp.chat_id AS id,
     p.first_name AS name,
     p.image_url AS avatar,
-    p.rating,
+    COALESCE((SELECT AVG(r.rating) FROM ratings r WHERE r.rated_id = p.id), 5) AS rating,
     m.message AS last_message,
     m.created_at AS updated_at,
     (
       SELECT COUNT(*)
       FROM messages unread
-      WHERE unread.chat_at = cp.chat_id
+      WHERE unread.chat_id = cp.chat_id
         AND unread.receiver_id = user_id_param
         AND unread.is_read = false
     ) AS unread_count,

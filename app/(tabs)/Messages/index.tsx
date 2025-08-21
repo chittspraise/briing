@@ -8,7 +8,9 @@ import {
   TextInput,
   Image,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
+import { Swipeable } from 'react-native-gesture-handler';
 import { useRouter } from 'expo-router';
 import { supabase } from '@/supabaseClient';
 import { Ionicons } from '@expo/vector-icons';
@@ -18,9 +20,12 @@ type Conversation = {
   other_user_id: string;
   name: string; // other user's first_name
   avatar: string; // other user's avatar
+  rating: number;
   last_message: string;
   updated_at: string;
   unread_count: number;
+  product_name: string;
+  product_image: string;
 };
 
 const MessagesPage = () => {
@@ -65,48 +70,99 @@ const MessagesPage = () => {
     c.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const renderItem = ({ item }: { item: Conversation }) => (
-    <TouchableOpacity
-      style={styles.messageCard}
-      onPress={() =>
-        router.push({
-          pathname: '/Messages/[chatId]',
-          params: {
-            chatId: item.id,
-            receiverId: item.other_user_id,
-            otherUserName: item.name,
-            otherUserAvatar: item.avatar,
+  const handleDelete = async (chatId: string) => {
+    Alert.alert(
+      'Delete Conversation',
+      'Are you sure you want to delete this conversation?',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Delete',
+          onPress: async () => {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) return;
+
+            const { error } = await supabase.rpc('delete_chat', {
+              p_chat_id: chatId,
+              p_user_id: user.id,
+            });
+
+            if (error) {
+              Alert.alert('Error', 'Failed to delete conversation.');
+              console.error('Delete error:', error);
+            } else {
+              setConversations(prev => prev.filter(c => c.id !== chatId));
+            }
           },
-        })
-      }
-    >
-      <Image
-        source={{
-          uri: item.avatar || `https://picsum.photos/seed/${item.other_user_id}/50`,
-        }}
-        style={styles.avatar}
-      />
-      <View style={styles.textContent}>
-        <Text style={styles.name}>{item.name}</Text>
-        <Text style={styles.messagePreview} numberOfLines={1}>
-          {item.last_message ?? 'No messages yet.'}
-        </Text>
-      </View>
-      <View style={styles.metaContent}>
-        <Text style={styles.time}>
-          {new Date(item.updated_at).toLocaleTimeString([], {
-            hour: '2-digit',
-            minute: '2-digit',
-          })}
-        </Text>
-        {item.unread_count > 0 && (
-          <View style={styles.unreadBadge}>
-            <Text style={styles.unreadText}>{item.unread_count}</Text>
+          style: 'destructive',
+        },
+      ]
+    );
+  };
+
+  const renderItem = ({ item }: { item: Conversation }) => {
+    const renderRightActions = () => (
+      <TouchableOpacity
+        onPress={() => handleDelete(item.id)}
+        style={styles.deleteButton}
+      >
+        <Ionicons name="trash-outline" size={24} color="#fff" />
+      </TouchableOpacity>
+    );
+
+    return (
+      <View style={{ marginBottom: 12 }}>
+        <Swipeable renderRightActions={renderRightActions}>
+          <TouchableOpacity
+            style={styles.messageCard}
+          onPress={() =>
+            router.push({
+              pathname: '/Messages/[chatId]',
+              params: {
+                chatId: item.id,
+                receiverId: item.other_user_id,
+                otherUserName: item.name,
+                otherUserAvatar: item.avatar,
+                rating: item.rating,
+                productName: item.product_name,
+                productImage: item.product_image,
+              },
+            })
+          }
+        >
+          <Image
+            source={{
+              uri: item.avatar || `https://picsum.photos/seed/${item.other_user_id}/50`,
+            }}
+            style={styles.avatar}
+          />
+          <View style={styles.textContent}>
+            <Text style={styles.name}>{item.name}</Text>
+            <Text style={styles.messagePreview} numberOfLines={1}>
+              {item.last_message ?? 'No messages yet.'}
+            </Text>
           </View>
-        )}
-      </View>
-    </TouchableOpacity>
+          <View style={styles.metaContent}>
+            <Text style={styles.time}>
+              {new Date(item.updated_at).toLocaleTimeString([], {
+                hour: '2-digit',
+                minute: '2-digit',
+              })}
+            </Text>
+            {item.unread_count > 0 && (
+              <View style={styles.unreadBadge}>
+                <Text style={styles.unreadText}>{item.unread_count}</Text>
+              </View>
+            )}
+          </View>
+        </TouchableOpacity>
+      </Swipeable>
+    </View>
   );
+  };
 
   return (
     <View style={styles.container}>
@@ -166,7 +222,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#1a1a1a',
     borderRadius: 12,
     padding: 12,
-    marginBottom: 12,
   },
   avatar: {
     width: 50,
@@ -189,6 +244,13 @@ const styles = StyleSheet.create({
   },
   unreadText: { color: '#fff', fontSize: 12, fontWeight: 'bold' },
   emptyText: { textAlign: 'center', marginTop: 50, color: '#888', fontSize: 16 },
+  deleteButton: {
+    backgroundColor: '#ff3b30',
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: 75,
+    borderRadius: 12,
+  },
 });
 
 export default MessagesPage;

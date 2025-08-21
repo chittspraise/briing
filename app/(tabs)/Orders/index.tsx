@@ -8,6 +8,7 @@ import {
   Image,
   FlatList,
   Linking,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '@/supabaseClient';
@@ -349,6 +350,9 @@ const OrderPage = () => {
                       senderId: currentUserId,
                       otherUserName: item.first_name,
                       otherUserAvatar: item.avatar,
+                      rating: item.rating,
+                      productName: item.item_name,
+                      productImage: item.image_url,
                     },
                   });
                 }}
@@ -386,7 +390,13 @@ const OrderPage = () => {
             </View>
           );
         }}
-        ListEmptyComponent={<Text style={{ color: '#fff', textAlign: 'center' }}>No requests found.</Text>}
+        ListEmptyComponent={
+          loading ? (
+            <ActivityIndicator size="large" color="#fff" />
+          ) : (
+            <Text style={{ color: '#fff', textAlign: 'center' }}>No requests found.</Text>
+          )
+        }
         refreshing={loading}
         onRefresh={fetchRequests}
       />

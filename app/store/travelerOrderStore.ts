@@ -50,7 +50,6 @@ export const useTravelerOrderStore = create<TravelerOrderState>((set) => ({
 
   setTravelerId: (id) => {
     const cleanId = id && id.trim() !== '' ? id : null;
-    console.log('Setting travelerId:', cleanId);
     set({ travelerId: cleanId });
   },
 
@@ -62,12 +61,10 @@ export const useTravelerOrderStore = create<TravelerOrderState>((set) => ({
   },
 
   setCustomProducts: (products) => {
-    console.log('Setting custom products:', products);
     set({ custom_products: products });
   },
 
   clearOrder: () => {
-    console.log('Clearing order store');
     set({
       travelerId: null,
       item_name: '',

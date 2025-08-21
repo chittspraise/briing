@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -8,14 +8,18 @@ import {
   Image,
   SafeAreaView,
   ScrollView,
+  TextInput,
 } from 'react-native';
 import { categorizedStores } from '../constants/allStores';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
 const AllStoresScreen: React.FC = () => {
+  const [searchQuery, setSearchQuery] = useState('');
+  const { travelerId } = useLocalSearchParams<{ travelerId?: string }>();
+
   const openStore = (url: string, name: string) => {
-    router.push({ pathname: "/storePage", params: { url, name } });
+    router.push({ pathname: "/storePage", params: { url, name, travelerId } });
   };
 
   const renderStoreCard = ({ item }: { item: any }) => (
@@ -30,6 +34,16 @@ const AllStoresScreen: React.FC = () => {
     </TouchableOpacity>
   );
 
+  const filteredStores = Object.entries(categorizedStores).reduce((acc, [category, stores]) => {
+    const filtered = stores.filter(store =>
+      store.name.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+    if (filtered.length > 0) {
+      acc[category] = filtered;
+    }
+    return acc;
+  }, {} as typeof categorizedStores);
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.header}>
@@ -38,8 +52,18 @@ const AllStoresScreen: React.FC = () => {
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Popular Stores</Text>
       </View>
+      <View style={styles.searchContainer}>
+        <Ionicons name="search" size={20} color="#888" style={styles.searchIcon} />
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Search for a store..."
+          placeholderTextColor="#888"
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+        />
+      </View>
       <ScrollView style={styles.container}>
-        {Object.entries(categorizedStores).map(([category, stores]) => (
+        {Object.entries(filteredStores).map(([category, stores]) => (
           <View key={category} style={styles.categorySection}>
             <Text style={styles.categoryTitle}>{category}</Text>
             <FlatList
@@ -81,6 +105,24 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 20,
     fontWeight: 'bold',
+  },
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#1C1C1E',
+    borderRadius: 10,
+    marginHorizontal: 15,
+    marginVertical: 10,
+    paddingHorizontal: 10,
+  },
+  searchIcon: {
+    marginRight: 10,
+  },
+  searchInput: {
+    flex: 1,
+    color: '#fff',
+    fontSize: 16,
+    paddingVertical: 10,
   },
   categorySection: {
     marginVertical: 15,

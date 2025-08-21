@@ -40,7 +40,9 @@ const DeliveryDetailsPage = () => {
   ];
 
   useEffect(() => {
-    setTravelerId(travelerId ?? null);
+    if (travelerId) {
+      setTravelerId(travelerId);
+    }
   }, [travelerId]);
 
   useEffect(() => {
@@ -76,7 +78,7 @@ const DeliveryDetailsPage = () => {
 
       setLoading(false);
 
-      navigation.navigate('productSummary', { travelerId, orderId });
+      navigation.navigate('productSummary', { travelerId: travelerId, orderId });
     } catch (error) {
       setLoading(false);
       Toast.show({ type: 'error', text1: 'Error', text2: 'Could not save delivery details.' });

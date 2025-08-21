@@ -5,7 +5,6 @@ import {
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  Switch,
   Image,
   ScrollView,
   FlatList,
@@ -33,7 +32,7 @@ const ProductLinkPage = () => {
   const priceFromParams = params.price as string;
   const orderId = params.orderId as string | undefined;
 
-  const { setOrderDetails } = useTravelerOrderStore();
+  const { setOrderDetails, travelerId } = useTravelerOrderStore();
 
   useEffect(() => {
     if (travelerIdFromParams) {
@@ -44,7 +43,7 @@ const ProductLinkPage = () => {
   useEffect(() => {
     if (orderId) {
       const fetchOrder = async () => {
-        const { data, error } = await supabase
+        const { data } = await supabase
           .from('product_orders')
           .select('*')
           .eq('id', orderId)
@@ -60,7 +59,6 @@ const ProductLinkPage = () => {
           setDescription(data.details);
           setImageUris(data.image_url ? [data.image_url] : []);
           setSelectedImage(data.image_url);
-          setIsGift(!data.with_box);
         }
       };
       fetchOrder();
@@ -74,7 +72,6 @@ const ProductLinkPage = () => {
   const [quantity, setQuantity] = useState('');
   const [imageUris, setImageUris] = useState<string[]>(images);
   const [selectedImage, setSelectedImage] = useState<string | null>(images.length > 0 ? images[0] : null);
-  const [isGift, setIsGift] = useState(false);
   const [productName, setProductName] = useState(productNameFromParams);
   const [description, setDescription] = useState('');
 
@@ -103,11 +100,11 @@ const ProductLinkPage = () => {
       price: price,
       quantity: quantity,
       image_url: selectedImage || '',
-      with_box: !isGift,
+      with_box: true,
       details: description,
       product_url: productLink,
     });
-    router.push({ pathname: '/DeliveryDetails', params: { orderId: orderId } });
+    router.push({ pathname: '/DeliveryDetails', params: { orderId: orderId, travelerId: travelerId } });
   };
 
   const openInStore = () => {
@@ -190,16 +187,6 @@ const ProductLinkPage = () => {
       <TouchableOpacity style={styles.imagePicker} onPress={handleImagePick}>
         <Text style={styles.imagePickerText}>Add Your Own Image</Text>
       </TouchableOpacity>
-
-      <View style={styles.switchContainer}>
-        <Text style={styles.switchLabel}>Mark as Gift</Text>
-        <Switch
-          value={isGift}
-          onValueChange={(value) => setIsGift(value)}
-          trackColor={{ false: '#ccc', true: '#000' }}
-          thumbColor={isGift ? '#fff' : '#f4f3f4'}
-        />
-      </View>
 
       <TouchableOpacity style={styles.button} onPress={handleNext}>
         <Text style={styles.buttonText}>Next</Text>

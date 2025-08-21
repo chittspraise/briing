@@ -1,4 +1,6 @@
+import { decode } from 'base64-arraybuffer';
 import { supabase } from '@/supabaseClient';
+import * as FileSystem from 'expo-file-system';
 import * as ImagePicker from 'expo-image-picker';
 import React, { useEffect, useState } from 'react';
 import {
@@ -63,43 +65,51 @@ const EditProfileScreen = () => {
     if (!result.canceled && result.assets.length > 0) {
       const asset = result.assets[0];
       const uri = asset.uri;
+      const base64 = await FileSystem.readAsStringAsync(uri, { encoding: 'base64' });
 
       try {
         setUploading(true);
         const fileName = `${userId}-${Date.now()}.jpg`;
         const filePath = `profiles/${fileName}`;
 
-        const response = await fetch(uri);
-        const blob = await response.blob();
+        const arraybuffer = decode(base64);
 
         const { error: uploadError } = await supabase.storage
           .from('images')
-          .upload(filePath, blob, {
-            contentType: 'image/jpeg',
+          .upload(filePath, arraybuffer, {
+            contentType: 'image/png',
             upsert: true,
           });
 
         if (uploadError) {
-          Toast.show({ type: 'error', text1: 'Upload Error', text2: uploadError.message });
+          console.error('Supabase upload error:', uploadError);
+          Toast.show({
+            type: 'error',
+            text1: 'Upload Error',
+            text2: `Failed to upload image: ${uploadError.message}`,
+          });
           setUploading(false);
           return;
         }
 
         const { data } = supabase.storage.from('images').getPublicUrl(filePath);
-        setImage(data.publicUrl);
+        const newImageUrl = data.publicUrl;
+        setImage(newImageUrl);
 
         const { error: updateError } = await supabase
           .from('profiles')
-          .update({ image_url: data.publicUrl })
+          .update({ image_url: newImageUrl })
           .eq('id', userId);
 
         if (updateError) {
+          console.error('Supabase profile update error:', updateError);
           Toast.show({ type: 'error', text1: 'Update Failed', text2: updateError.message });
         } else {
           Toast.show({ type: 'success', text1: 'Success', text2: 'Image updated successfully' });
         }
       } catch (error: any) {
-        Toast.show({ type: 'error', text1: 'Upload Error', text2: error.message });
+        console.error('An unexpected error occurred:', error);
+        Toast.show({ type: 'error', text1: 'An Unexpected Error Occurred', text2: error.message });
       } finally {
         setUploading(false);
       }

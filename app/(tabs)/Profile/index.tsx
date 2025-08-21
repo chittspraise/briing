@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   ScrollView,
   ImageBackground,
+  SafeAreaView,
 } from 'react-native';
 import { Feather, Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
@@ -41,7 +42,7 @@ const ProfileScreen = () => {
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [rating, setRating] = useState(5);
-  const [avatarUrl, setAvatarUrl] = useState('https://picsum.photos/100');
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
 
   const fetchProfile = useCallback(async () => {
     const {
@@ -50,7 +51,6 @@ const ProfileScreen = () => {
     } = await supabase.auth.getUser();
 
     if (userError || !user) {
-      console.log('Error fetching user:', userError?.message);
       return;
     }
 
@@ -61,7 +61,6 @@ const ProfileScreen = () => {
       .single();
 
     if (error) {
-      console.log('Error fetching profile:', error.message);
     } else if (data) {
       setFirstName(data.first_name || '');
       setLastName(data.last_name || '');
@@ -76,7 +75,6 @@ const ProfileScreen = () => {
       .eq('rated_id', user.id);
 
     if (ratingsError) {
-      console.log('Error fetching ratings:', ratingsError.message);
       setRating(5); // Default to 5 on error
     } else if (ratingsData && ratingsData.length > 0) {
       const avgRating =
@@ -104,91 +102,93 @@ const ProfileScreen = () => {
   };
 
   return (
-    <ScrollView style={styles.container}>
-      {/* Profile Header */}
-      <ImageBackground
-        source={require('@/assets/images/places.jpg')}
-        style={styles.profileBanner}
-        resizeMode="cover"
-      >
-        <View style={styles.bannerOverlay}>
-          <Image
-            style={styles.avatar}
-            source={{ uri: avatarUrl }}
-          />
-          <View style={styles.profileInfo}>
-            <Text style={styles.name}>
-              {firstName || lastName ? `${firstName} ${lastName}` : 'Loading...'}
-            </Text>
-            <View style={styles.ratingContainer}>
-              <Text style={styles.ratingText}>{renderStars(rating)} ({rating.toFixed(1)})</Text>
+    <SafeAreaView style={styles.safeArea}>
+      <ScrollView style={styles.container}>
+        {/* Profile Header */}
+        <ImageBackground
+          source={require('@/assets/images/places.jpg')}
+          style={styles.profileBanner}
+          resizeMode="cover"
+        >
+          <View style={styles.bannerOverlay}>
+            <Image
+              style={styles.avatar}
+              source={avatarUrl ? { uri: avatarUrl } : require('@/assets/images/icon.png')}
+            />
+            <View style={styles.profileInfo}>
+              <Text style={styles.name}>
+                {firstName || lastName ? `${firstName} ${lastName}` : 'Loading...'}
+              </Text>
+              <View style={styles.ratingContainer}>
+                <Text style={styles.ratingText}>{renderStars(rating)} ({rating.toFixed(1)})</Text>
+              </View>
+              <TouchableOpacity onPress={() => navigation.navigate('profile')}>
+                <Text style={styles.editProfile}>Edit profile</Text>
+              </TouchableOpacity>
             </View>
-            <TouchableOpacity onPress={() => navigation.navigate('profile')}>
-              <Text style={styles.editProfile}>Edit profile</Text>
+            <TouchableOpacity
+              style={styles.walletIcon}
+              onPress={() => router.push('/(tabs)/Profile/settings/wallet')}
+            >
+              <Ionicons name="wallet-outline" size={28} color="#fff" />
             </TouchableOpacity>
           </View>
-          <TouchableOpacity
-            style={styles.walletIcon}
-            onPress={() => router.push('/(tabs)/Profile/settings/wallet')}
-          >
-            <Ionicons name="wallet-outline" size={28} color="#fff" />
-          </TouchableOpacity>
+        </ImageBackground>
+
+        {/* Section: Account */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Account</Text>
+          <Option
+            label="Notifications"
+            icon={<Ionicons name="notifications-outline" size={20} color="#fff" />}
+            onPress={() => navigation.navigate('notifications')}
+          />
+          <Option
+            label="Settings"
+            icon={<Feather name="settings" size={20} color="#fff" />}
+            onPress={() => navigation.navigate('settings/index')}
+          />
         </View>
-      </ImageBackground>
 
-      {/* Section: Account */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Account</Text>
-        <Option
-          label="Notifications"
-          icon={<Ionicons name="notifications-outline" size={20} color="#fff" />}
-          onPress={() => navigation.navigate('notifications')}
-        />
-        <Option
-          label="Settings"
-          icon={<Feather name="settings" size={20} color="#fff" />}
-          onPress={() => navigation.navigate('settings/index')}
-        />
-      </View>
+        {/* Section: Support */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Support</Text>
+          <Option
+            label="Check Help Center"
+            icon={<Feather name="menu" size={20} color="#fff" />}
+            onPress={() => navigation.navigate('help')}
+          />
+          <Option
+            label="Submit a request"
+            icon={<Feather name="edit" size={20} color="#fff" />}
+            onPress={() => navigation.navigate('help')}
+          />
+        </View>
 
-      {/* Section: Support */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Support</Text>
-        <Option
-          label="Check Help Center"
-          icon={<Feather name="menu" size={20} color="#fff" />}
-          onPress={() => navigation.navigate('help')}
-        />
-        <Option
-          label="Submit a request"
-          icon={<Feather name="edit" size={20} color="#fff" />}
-          onPress={() => navigation.navigate('help')}
-        />
-      </View>
+        {/* Section: Referrals */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Refer</Text>
+          <Option
+            label="Invite Friends"
+            icon={<Feather name="gift" size={20} color="#fff" />}
+            onPress={() => navigation.navigate('invite')}
+          />
+          <Option
+            label="Coupons"
+            icon={<Feather name="percent" size={20} color="#fff" />}
+          />
+        </View>
 
-      {/* Section: Referrals */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Refer</Text>
-        <Option
-          label="Invite Friends"
-          icon={<Feather name="gift" size={20} color="#fff" />}
-          onPress={() => navigation.navigate('invite')}
-        />
-        <Option
-          label="Coupons"
-          icon={<Feather name="percent" size={20} color="#fff" />}
-        />
-      </View>
-
-      {/* Section: Danger */}
-      <View style={styles.section}>
-        <Option
-          label="Log Out"
-          icon={<MaterialIcons name="logout" size={20} color="#fff" />}
-          onPress={handleLogout}
-        />
-      </View>
-    </ScrollView>
+        {/* Section: Danger */}
+        <View style={styles.section}>
+          <Option
+            label="Log Out"
+            icon={<MaterialIcons name="logout" size={20} color="#fff" />}
+            onPress={handleLogout}
+          />
+        </View>
+      </ScrollView>
+    </SafeAreaView>
   );
 };
 
@@ -208,15 +208,19 @@ const Option = ({
 );
 
 const styles = StyleSheet.create({
-  container: {
+  safeArea: {
     flex: 1,
     backgroundColor: '#000',
-    paddingTop: 50,
+  },
+  container: {
+    flex: 1,
   },
   profileBanner: {
     paddingBottom: 20,
     marginBottom: 20,
-    height: 250,},
+    height: 200,
+    justifyContent: 'center',
+  },
   bannerOverlay: {
     flexDirection: 'row',
     alignItems: 'center',

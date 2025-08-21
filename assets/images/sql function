@@ -1,0 +1,9 @@
+CREATE OR REPLACE FUNCTION public.delete_chat(p_chat_id text, p_user_id uuid)
+RETURNS void AS $$
+BEGIN
+  -- Delete all messages in the chat where the user is either sender or receiver
+  DELETE FROM public.messages
+  WHERE chat_id = p_chat_id
+    AND (sender_id = p_user_id OR receiver_id = p_user_id);
+END;
+$$ LANGUAGE plpgsql;

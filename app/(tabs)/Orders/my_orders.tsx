@@ -210,7 +210,7 @@ const MyOrdersPage = () => {
     const currentIndex = STATUS_CHAIN.indexOf(order.status);
     const newIndex = STATUS_CHAIN.indexOf(newStatus);
 
-    if (newStatus !== 'cancel' && newIndex <= currentIndex) {
+    if (newStatus !== 'cancel' && newStatus !== 'declined' && newIndex <= currentIndex) {
       Toast.show({ type: 'error', text1: 'Invalid Status Update', text2: 'You cannot go back in status.' });
       return;
     }
@@ -347,7 +347,9 @@ const MyOrdersPage = () => {
       statusOptions.push('cancel');
     }
 
-    const displayTotal = item.price + item.platform_fee + item.traveler_reward;
+    const displayTotal = travelerConfirmed
+      ? item.price + item.traveler_reward
+      : item.price + item.platform_fee + item.traveler_reward;
 
     return (
       <View style={styles.card}>
@@ -397,6 +399,11 @@ const MyOrdersPage = () => {
                     chatId,
                     receiverId: item.user_id,
                     senderId: currentUserId,
+                    otherUserName: item.first_name,
+                    otherUserAvatar: item.avatar,
+                    rating: item.rating,
+                    productName: item.item_name,
+                    productImage: item.image_url,
                   },
                 });
               }}
@@ -430,7 +437,7 @@ const MyOrdersPage = () => {
           </View>
         ) : (
           <View style={styles.profileRow}>
-            {item.avatar && <Image source={{ uri: item.avatar }} style={styles.avatar} />}
+            {item.avatar ? <Image source={{ uri: item.avatar }} style={styles.avatar} /> : <Image source={require('../../../assets/images/icon.png')} style={styles.avatar} />}
             <View style={{ flex: 1 }}>
               <Text style={styles.name}>{item.first_name}</Text>
               <Text style={styles.rating}>
@@ -479,7 +486,9 @@ const MyOrdersPage = () => {
           <Text style={styles.price}>R{item.traveler_reward.toFixed(2)}</Text>
         </View>
         <Text style={styles.productDetail}>Price: R{item.price.toFixed(2)}</Text>
-        <Text style={styles.productDetail}>Platform Fee: R{(item.platform_fee).toFixed(2)}</Text>
+        {!travelerConfirmed && (
+          <Text style={styles.productDetail}>Platform Fee: R{(item.platform_fee).toFixed(2)}</Text>
+        )}
 
         {item.product_url && (
           <TouchableOpacity
@@ -677,11 +686,13 @@ const styles = StyleSheet.create({
   },
   travelerActions: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
+    justifyContent: 'space-between',
+    gap: 10,
     marginTop: 10,
     marginBottom: 15,
   },
   actionButton: {
+    flex: 1,
     paddingVertical: 8,
     paddingHorizontal: 12,
     borderRadius: 8,
@@ -690,6 +701,7 @@ const styles = StyleSheet.create({
   actionButtonText: {
     color: '#fff',
     fontWeight: 'bold',
+    textAlign: 'center',
   },
   acceptButton: {
     backgroundColor: '#0a0',

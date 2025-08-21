@@ -15,8 +15,11 @@ import {
   Text,
   TouchableOpacity,
   View,
+  ImageBackground,
 } from 'react-native';
 import { Toast } from 'react-native-toast-message/lib/src/Toast';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Ionicons } from '@expo/vector-icons';
 
 const { width } = Dimensions.get('window');
 
@@ -89,37 +92,26 @@ const ExplorePage = () => {
     try {
       const { data, error } = await supabase
         .from('product_orders')
-        .select('id, destination, traveler_reward, image_url');
+        .select('id, destination, traveler_reward, image_url, created_at');
       if (error) throw error;
 
-      const { data: offersData, error: offersError } = await supabase
-        .from('confirmed_orders')
-        .select('order_id');
-      if (offersError) throw offersError;
-
       const safeData = data || [];
-      const safeOffersData = offersData || [];
-
-      const offerCounts = safeOffersData.reduce((acc, offer) => {
-        const order = safeData.find(o => o.id === offer.order_id);
-        if (order?.destination) acc[order.destination] = (acc[order.destination] || 0) + 1;
-        return acc;
-      }, {} as { [key: string]: number });
 
       const destinationsByReward = safeData.reduce((acc, order) => {
-        const { destination, traveler_reward, image_url } = order;
+        const { destination, traveler_reward, image_url, created_at } = order;
         if (destination) {
           if (!acc[destination]) {
-            acc[destination] = { name: destination, reward: 0, orders: 0, imageUrl: null };
+            acc[destination] = { name: destination, reward: 0, orders: 0, imageUrl: null, latestDate: null };
           }
           acc[destination].reward += traveler_reward || 0;
           acc[destination].orders += 1;
-          if (!acc[destination].imageUrl && image_url) {
+          if (image_url && (!acc[destination].latestDate || new Date(created_at) > new Date(acc[destination].latestDate))) {
             acc[destination].imageUrl = image_url;
+            acc[destination].latestDate = created_at;
           }
         }
         return acc;
-      }, {} as { [key: string]: { name: string; reward: number; orders: number; imageUrl: string | null } });
+      }, {} as { [key: string]: { name: string; reward: number; orders: number; imageUrl: string | null; latestDate: string | null } });
 
       const sortedDestinations = Object.values(destinationsByReward)
         .sort((a, b) => b.reward - a.reward)
@@ -130,8 +122,7 @@ const ExplorePage = () => {
         name: dest.name,
         reward: dest.reward.toFixed(2),
         orders: dest.orders,
-        offers: offerCounts[dest.name] || 0,
-        imageUrl: `https://picsum.photos/seed/${dest.name}/800/600`,
+        imageUrl: dest.imageUrl || require('../../../assets/images/icon.png'),
       }));
       setHighestPayingDestinations(formattedDestinations);
     } catch (e) {
@@ -154,29 +145,30 @@ const ExplorePage = () => {
         const orderIds = confirmedOrderIds.map(o => o.order_id);
         const { data: orders, error: ordersError } = await supabase
           .from('product_orders')
-          .select('destination, traveler_reward, image_url')
+          .select('destination, traveler_reward, image_url, created_at')
           .in('id', orderIds);
         if (ordersError) throw ordersError;
 
         const offersByDestination = (orders || []).reduce((acc, order) => {
-          const { destination, traveler_reward, image_url } = order;
+          const { destination, traveler_reward, image_url, created_at } = order;
           if (destination) {
             if (!acc[destination]) {
-              acc[destination] = { name: destination, reward: 0, imageUrl: null };
+              acc[destination] = { name: destination, reward: 0, imageUrl: null, latestDate: null };
             }
             acc[destination].reward += traveler_reward || 0;
-            if (!acc[destination].imageUrl && image_url) {
+            if (image_url && (!acc[destination].latestDate || new Date(created_at) > new Date(acc[destination].latestDate))) {
               acc[destination].imageUrl = image_url;
+              acc[destination].latestDate = created_at;
             }
           }
           return acc;
-        }, {} as { [key: string]: { name: string; reward: number; imageUrl: string | null } });
+        }, {} as { [key: string]: { name: string; reward: number; imageUrl: string | null; latestDate: string | null } });
 
         const formattedOffers = Object.values(offersByDestination).map((offer, index) => ({
           id: `${offer.name}-${index}`,
           name: offer.name,
           reward: offer.reward.toFixed(2),
-          imageUrl: `https://picsum.photos/seed/${offer.name}/800/600`,
+          imageUrl: offer.imageUrl || require('../../../assets/images/icon.png'),
         }));
         setConfirmedOffers(formattedOffers);
       }
@@ -278,7 +270,7 @@ const ExplorePage = () => {
           is_round_trip: !!item.return_date,
           avatar:
             profilesMap.get(item.user_id) ||
-            'https://randomuser.me/api/portraits/men/1.jpg',
+            require('../../../assets/images/icon.png'),
           rating: avgRating,
           comment: latestComment,
         };
@@ -328,7 +320,7 @@ const ExplorePage = () => {
 
   const renderTravelerItem = ({ item }: { item: any }) => (
     <View style={styles.travelerCard}>
-      <Image source={{ uri: item.avatar }} style={styles.avatar} />
+      <Image source={typeof item.avatar === 'string' ? { uri: item.avatar } : item.avatar} style={styles.avatar} />
       <View style={styles.travelerInfo}>
         <Text style={styles.travelerName}>{item.name}</Text>
         {renderStars(item.rating)}
@@ -364,41 +356,33 @@ const ExplorePage = () => {
 
   const renderDestinationItem = ({ item }: { item: any }) => (
     <TouchableOpacity onPress={() => handleDestinationPress(item.name, 'destinations')}>
-      <View style={styles.card}>
-        <Image source={{ uri: item.imageUrl }} style={styles.image} resizeMode="contain" />
-        <View style={styles.cardContent}>
+      <ImageBackground source={typeof item.imageUrl === 'string' ? { uri: item.imageUrl } : item.imageUrl} style={styles.card} imageStyle={{ borderRadius: 12, resizeMode: 'contain' }}>
+        <LinearGradient colors={['transparent', 'rgba(0,0,0,0.8)']} style={styles.gradient}>
           <Text style={styles.destName}>{item.name}</Text>
-          {item.orders && item.offers ? (
-            <Text style={styles.subText}>
-              {`${item.orders} orders • ${item.offers} offers`}
-            </Text>
-          ) : null}
-          <Text style={styles.rewardLabel}>Total Reward:</Text>
+          <Text style={styles.subText}>
+            {`${item.orders} orders`}
+          </Text>
           <Text style={styles.rewardValue}>{`R${item.reward}`}</Text>
-        </View>
-      </View>
+        </LinearGradient>
+      </ImageBackground>
     </TouchableOpacity>
   );
 
   const renderOfferItem = ({ item }: { item: any }) => (
     <TouchableOpacity onPress={() => handleDestinationPress(item.name, 'offers')}>
-        <View style={styles.card}>
-            <Image source={{ uri: item.imageUrl }} style={styles.image} resizeMode="contain" />
-            <View style={styles.cardContent}>
-                <Text style={styles.destName}>{item.name}</Text>
-                <Text style={styles.rewardLabel}>Total Reward:</Text>
-                <Text style={styles.rewardValue}>{`R${item.reward}`}</Text>
-            </View>
-        </View>
+      <ImageBackground source={typeof item.imageUrl === 'string' ? { uri: item.imageUrl } : item.imageUrl} style={styles.card} imageStyle={{ borderRadius: 12, resizeMode: 'contain' }}>
+        <LinearGradient colors={['transparent', 'rgba(0,0,0,0.8)']} style={styles.gradient}>
+          <Text style={styles.destName}>{item.name}</Text>
+          <Text style={styles.rewardValue}>{`R${item.reward}`}</Text>
+        </LinearGradient>
+      </ImageBackground>
     </TouchableOpacity>
   );
 
   const renderStoreItem = ({ item }: { item: any }) => (
-    <TouchableOpacity style={styles.card} onPress={() => openStore(item.link, item.name)}>
+    <TouchableOpacity style={styles.storeCard} onPress={() => openStore(item.link, item.name)}>
       <Image source={{ uri: item.logo }} style={styles.storeLogo} resizeMode="contain" />
-      <View style={styles.cardContent}>
-        <Text style={styles.destName}>{item.name}</Text>
-      </View>
+      <Text style={styles.storeName}>{item.name}</Text>
     </TouchableOpacity>
   );
 
@@ -415,7 +399,12 @@ const ExplorePage = () => {
 
   return (
     <ScrollView style={styles.container}>
-      <Image source={require('../../../assets/images/exploreimage.webp')} style={styles.bannerImage} />
+      <ImageBackground source={require('../../../assets/images/exploreimage.webp')} style={styles.bannerImage}>
+        <LinearGradient colors={['rgba(0,0,0,0.1)', 'rgba(0,0,0,0.8)']} style={styles.bannerGradient}>
+          <Text style={styles.bannerTitle}>Explore the World</Text>
+          <Text style={styles.bannerSubtitle}>Get anything from anywhere, delivered by travelers.</Text>
+        </LinearGradient>
+      </ImageBackground>
       
       <View style={styles.sectionHeader}>
         <Text style={styles.sectionTitle}>Upcoming Travelers</Text>
@@ -488,14 +477,12 @@ const ExplorePage = () => {
           <>
               <FlatList
                   horizontal
-                  pagingEnabled
                   showsHorizontalScrollIndicator={false}
                   data={mostPurchasedStores}
                   renderItem={renderStoreItem}
                   keyExtractor={(item) => item.id.toString()}
-                  onScroll={handleScroll(setActiveStore)}
+                  contentContainerStyle={{ paddingHorizontal: 10 }}
               />
-              {renderPaginationDots(mostPurchasedStores.length, activeStore)}
           </>
       )}
     </ScrollView>
@@ -505,73 +492,94 @@ const ExplorePage = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000',
+    backgroundColor: '#121212',
   },
   bannerImage: {
     width: '100%',
     height: 300,
-    resizeMode: 'cover',
+    resizeMode: 'contain',
+    justifyContent: 'flex-end',
+  },
+  bannerGradient: {
+    padding: 20,
+  },
+  bannerTitle: {
+    fontSize: 32,
+    fontWeight: 'bold',
+    color: '#fff',
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: -1, height: 1 },
+    textShadowRadius: 10,
+  },
+  bannerSubtitle: {
+    fontSize: 16,
+    color: '#fff',
+    marginTop: 4,
   },
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 16,
+    marginTop: 24,
   },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    marginTop: 24,
-    marginBottom: 12,
+    fontSize: 20,
+    fontWeight: 'bold',
     color: '#fff',
+    paddingHorizontal: 16,
   },
   addTripButton: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#fff',
-    marginTop: 12,
+    color: '#007AFF',
   },
   card: {
-    width: width * 0.92,
-    marginHorizontal: width * 0.04,
+    width: width * 0.9,
+    height: 220,
+    marginHorizontal: width * 0.05,
     marginBottom: 16,
-    backgroundColor: '#fff',
     borderRadius: 12,
     overflow: 'hidden',
+    justifyContent: 'flex-end',
   },
-  image: {
-    width: '100%',
-    height: 180,
-    backgroundColor: '#ddd',
-  },
-  storeLogo: {
-    width: '100%',
-    height: 160,
-    marginTop: 10,
-  },
-  cardContent: {
-    padding: 12,
-    alignItems: 'center',
+  gradient: {
+    padding: 16,
   },
   destName: {
-    fontSize: 18,
-    fontWeight: '700',
-    marginBottom: 4,
-    color: '#000',
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: '#fff',
   },
   subText: {
-    fontSize: 12,
-    color: '#444',
+    fontSize: 14,
+    color: '#eee',
     marginBottom: 6,
   },
-  rewardLabel: {
-    fontSize: 12,
-    color: '#555',
-  },
   rewardValue: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: 'bold',
-    color: '#000',
+    color: '#fff',
+  },
+  storeCard: {
+    backgroundColor: '#1E1E1E',
+    borderRadius: 12,
+    padding: 16,
+    marginHorizontal: 10,
+    width: 150,
+    alignItems: 'center',
+  },
+  storeLogo: {
+    width: 80,
+    height: 80,
+    borderRadius: 10,
+    marginBottom: 10,
+  },
+  storeName: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#fff',
+    textAlign: 'center',
   },
   paginationContainer: {
     flexDirection: 'row',
@@ -585,31 +593,26 @@ const styles = StyleSheet.create({
     margin: 4,
   },
   activeDot: {
-    backgroundColor: '#fff',
+    backgroundColor: '#007AFF',
   },
   inactiveDot: {
-    backgroundColor: '#777',
+    backgroundColor: '#555',
   },
   travelerCard: {
-    backgroundColor: '#121212',
+    backgroundColor: '#1E1E1E',
     borderRadius: 12,
     padding: 16,
     marginHorizontal: 10,
-    width: width * 0.78,
+    width: width * 0.8,
     flexDirection: 'row',
     alignItems: 'center',
-    shadowColor: '#fff',
-    shadowOpacity: 0.15,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 3 },
-    elevation: 5,
   },
   avatar: {
-    width: 70,
-    height: 70,
-    borderRadius: 35,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
     borderWidth: 2,
-    borderColor: '#fff',
+    borderColor: '#007AFF',
     marginRight: 14,
   },
   travelerInfo: {
@@ -619,12 +622,11 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '700',
     color: '#fff',
-    marginBottom: 6,
   },
   ratingText: {
     color: '#ccc',
     fontSize: 14,
-    marginBottom: 6,
+    marginVertical: 4,
   },
   commentText: {
     color: '#aaa',
@@ -640,7 +642,7 @@ const styles = StyleSheet.create({
   routeLocationText: {
     fontSize: 14,
     color: '#ccc',
-    maxWidth: '45%', // Ensure text doesn't overflow
+    maxWidth: '45%',
   },
   routeLine: {
     flex: 1,
@@ -683,15 +685,15 @@ const styles = StyleSheet.create({
     color: '#fff',
   },
   requestButton: {
-    backgroundColor: '#fff',
-    paddingVertical: 6,
-    paddingHorizontal: 12,
+    backgroundColor: '#007AFF',
+    paddingVertical: 8,
+    paddingHorizontal: 14,
     borderRadius: 8,
-    marginTop: 10,
+    marginTop: 12,
     alignSelf: 'flex-start',
   },
   requestButtonText: {
-    color: '#000',
+    color: '#fff',
     fontWeight: '700',
   },
 });

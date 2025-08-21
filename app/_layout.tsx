@@ -13,6 +13,7 @@ import * as WebBrowser from 'expo-web-browser';
 import * as Linking from 'expo-linking';
 import Toast, { BaseToast, ErrorToast, BaseToastProps } from 'react-native-toast-message';
 import SplashVideo from '../components/SplashVideo'; // Import the new component
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 const toastConfig = {
   success: (props: BaseToastProps) => (
@@ -68,29 +69,31 @@ function RootLayoutNav() {
   }, [session, loading, navigated]);
 
   return (
-    <StripeProvider
-      publishableKey="pk_test_51QWMaiC2SQuTnTNRszks2HmWc07cc1dsHmE3sarUSAw2R9sHGr0bX9fDdVygKR7GTWF3S54VOlQpii6QQVFr3cu200uYs2qzWn"
-      merchantIdentifier="merchant.com.chitts"
-    >
-      <OrderProvider>
-        <TravelProvider>
-          <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-            <Stack screenOptions={{ headerShown: false }}>
-              <Stack.Screen name="index" />
-              <Stack.Screen name="forgot-password" />
-              <Stack.Screen name="reset-password" />
-              <Stack.Screen name="must-be-signed-in" />
-              <Stack.Screen name="(tabs)" />
-              <Stack.Screen name="+not-found" />
-              <Stack.Screen name="travelPage" />
-              <Stack.Screen name="OrdersPage" />
-            </Stack>
-            <StatusBar style="auto" />
-          </ThemeProvider>
-        </TravelProvider>
-      </OrderProvider>
-      <Toast config={toastConfig} />
-    </StripeProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <StripeProvider
+        publishableKey="pk_test_51QWMaiC2SQuTnTNRszks2HmWc07cc1dsHmE3sarUSAw2R9sHGr0bX9fDdVygKR7GTWF3S54VOlQpii6QQVFr3cu200uYs2qzWn"
+        merchantIdentifier="merchant.com.chitts"
+      >
+        <OrderProvider>
+          <TravelProvider>
+            <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+              <Stack screenOptions={{ headerShown: false }}>
+                <Stack.Screen name="index" />
+                <Stack.Screen name="forgot-password" />
+                <Stack.Screen name="reset-password" />
+                <Stack.Screen name="must-be-signed-in" />
+                <Stack.Screen name="(tabs)" />
+                <Stack.Screen name="+not-found" />
+                <Stack.Screen name="travelPage" />
+                <Stack.Screen name="OrdersPage" />
+              </Stack>
+              <StatusBar style="auto" />
+            </ThemeProvider>
+          </TravelProvider>
+        </OrderProvider>
+        <Toast config={toastConfig} />
+      </StripeProvider>
+    </GestureHandlerRootView>
   );
 }
 

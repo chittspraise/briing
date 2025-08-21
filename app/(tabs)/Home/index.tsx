@@ -11,6 +11,7 @@ import {
   ScrollView,
   NativeSyntheticEvent,
   NativeScrollEvent,
+  Linking,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
@@ -59,6 +60,7 @@ const HomeScreen: React.FC = () => {
   };
 
   const [orders, setOrders] = useState<Order[]>([]);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [trendingProducts, setTrendingProducts] = useState<any[]>([]);
@@ -76,7 +78,7 @@ const HomeScreen: React.FC = () => {
 
       const { data: profile, error: profileError } = await supabase
         .from('profiles')
-        .select('first_name')
+        .select('first_name, image_url')
         .eq('id', user.id)
         .single();
 
@@ -84,6 +86,7 @@ const HomeScreen: React.FC = () => {
         console.error('Failed to fetch profile:', profileError);
       } else if (profile) {
         setFirstName(profile.first_name);
+        setAvatarUrl(profile.image_url);
       }
     };
 
@@ -96,7 +99,7 @@ const HomeScreen: React.FC = () => {
     try {
       const { data, error } = await supabase
         .from('product_orders')
-        .select('id, item_name, image_url, price, store, source_country')
+        .select('id, item_name, image_url, price, store, source_country, product_url')
         .order('created_at', { ascending: false })
         .limit(10);
 
@@ -156,20 +159,44 @@ const HomeScreen: React.FC = () => {
       return;
     }
 
+    const { data: ratingsData, error: ratingsError } = await supabase
+      .from('ratings')
+      .select('rated_id, rating')
+      .in('rated_id', userIds);
+
+    if (ratingsError) {
+      console.error('Fetch ratings error:', ratingsError);
+    }
+
+    const ratingsMap = new Map<string, { total: number; count: number }>();
+    if (ratingsData) {
+      for (const rating of ratingsData) {
+        if (!ratingsMap.has(rating.rated_id)) {
+          ratingsMap.set(rating.rated_id, { total: 0, count: 0 });
+        }
+        const current = ratingsMap.get(rating.rated_id)!;
+        current.total += rating.rating;
+        current.count += 1;
+      }
+    }
+
     const profilesMap = new Map(
       (profilesData ?? []).map((p) => [p.id, p])
     );
 
     const mappedOrders = ordersData.map((order) => {
       const profile = profilesMap.get(order.user_id);
+      const userRating = ratingsMap.get(order.user_id);
+      const avgRating = userRating ? userRating.total / userRating.count : 5;
+
       return {
         ...order,
         first_name: profile?.first_name ?? 'Anonymous User',
         avatar:
           profile?.image_url && profile.image_url.trim() !== ''
             ? profile.image_url
-            : `https://i.pravatar.cc/150?u=${order.user_id}`,
-        rating: 4,
+            : null,
+        rating: avgRating,
         images:
           order.image_url && order.image_url.trim() !== ''
             ? [order.image_url.trim()]
@@ -187,7 +214,8 @@ const HomeScreen: React.FC = () => {
   const handleScroll =
     (setIndex: (i: number) => void) =>
     (e: NativeSyntheticEvent<NativeScrollEvent>) => {
-      const index = Math.round(e.nativeEvent.contentOffset.x / (screenWidth * 0.8));
+      const cardWidth = screenWidth - 40;
+      const index = Math.round(e.nativeEvent.contentOffset.x / cardWidth);
       setIndex(index);
     };
 
@@ -199,10 +227,33 @@ const HomeScreen: React.FC = () => {
   );
 
   const renderTrendingProductCard = ({ item }: { item: any }) => (
-    <TouchableOpacity style={styles.card} onPress={() => router.push({ pathname: '/ProductPage', params: { ...item } })}>
+    <TouchableOpacity style={styles.trendingCard} onPress={() => router.push({ pathname: '/ProductPage', params: { ...item } })}>
       <Image source={{ uri: item.image_url }} style={styles.productImage} />
       <Text style={styles.productName} numberOfLines={1}>{item.item_name}</Text>
       <Text style={styles.price}>ZAR{item.price}</Text>
+      {item.product_url && (
+        <TouchableOpacity
+          style={styles.linkButton}
+          onPress={() => Linking.openURL(item.product_url)}
+        >
+          <Text style={styles.linkButtonText}>View Product</Text>
+        </TouchableOpacity>
+      )}
+      <TouchableOpacity
+        style={styles.offerButton}
+        onPress={() => router.push({
+          pathname: '/productlink',
+          params: {
+            url: item.store,
+            name: item.store,
+            images: JSON.stringify([item.image_url]),
+            productName: item.item_name,
+            price: item.price,
+          },
+        })}
+      >
+        <Text style={styles.offerButtonText}>Order this item</Text>
+      </TouchableOpacity>
     </TouchableOpacity>
   );
 
@@ -211,7 +262,7 @@ const HomeScreen: React.FC = () => {
       <ScrollView>
         <View style={styles.container}>
           <View style={styles.profileRow}>
-            <Image source={{ uri: 'https://i.pravatar.cc/100' }} style={styles.avatar} />
+            <Image source={avatarUrl ? { uri: avatarUrl } : require('../../../assets/images/icon.png')} style={styles.avatar} />
             <View>
               <Text style={styles.welcomeText}>Welcome</Text>
               <Text style={styles.usernameText}>{firstName || 'User'}</Text>
@@ -369,6 +420,9 @@ const HomeScreen: React.FC = () => {
                         chatId,
                         receiverId: item.user_id,
                         senderId: currentUserId,
+                        otherUserName: item.first_name,
+                        otherUserAvatar: item.avatar,
+                        rating: item.rating,
                       },
                     });
                   }}
@@ -556,6 +610,12 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     padding: 15,
     marginRight: 15,
+  },
+  trendingCard: {
+    width: screenWidth - 40,
+    backgroundColor: '#1a1a1a',
+    borderRadius: 10,
+    padding: 15,
   },
   name: {
     color: '#fff',
