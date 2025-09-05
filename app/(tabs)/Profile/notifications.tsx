@@ -6,9 +6,10 @@ import {
   View,
   FlatList,
   ActivityIndicator,
+  TouchableOpacity,
 } from 'react-native';
 import Toast from 'react-native-toast-message';
-import { useFocusEffect } from 'expo-router';
+import { useFocusEffect, router } from 'expo-router';
 import { supabase } from '@/supabaseClient';
 import { useAuth } from '@/app/providers/authProvider';
 
@@ -17,6 +18,7 @@ interface Notification {
   created_at: string;
   message: string;
   is_read: boolean;
+  order_id?: number;
 }
 
 const NotificationsScreen: React.FC = () => {
@@ -31,13 +33,14 @@ const NotificationsScreen: React.FC = () => {
     try {
       const { data, error } = await supabase
         .from('notifications')
-        .select('id, created_at, message, is_read')
+        .select('id, created_at, message, is_read, order_id')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false });
 
       if (error) {
         throw error;
       }
+      console.log('Fetched notifications data:', JSON.stringify(data, null, 2));
       setNotifications(data || []);
     } catch (error: any) {
       Toast.show({
@@ -51,22 +54,56 @@ const NotificationsScreen: React.FC = () => {
     }
   };
 
+  const markNotificationsAsRead = async () => {
+    if (!user) return;
+
+    try {
+      const { error } = await supabase
+        .from('notifications')
+        .update({ is_read: true })
+        .eq('user_id', user.id)
+        .eq('is_read', false);
+
+      if (error) {
+        throw error;
+      }
+    } catch (error: any) {
+      console.error('Error marking notifications as read:', error);
+    }
+  };
+
   useFocusEffect(
     useCallback(() => {
       fetchNotifications();
+      markNotificationsAsRead();
     }, [user])
   );
 
+  const handleNotificationPress = (order_id?: number) => {
+    console.log('Notification pressed. Order ID:', order_id);
+    if (order_id) {
+      console.log('Navigating to order:', order_id);
+      router.push({
+        pathname: '/(tabs)/Orders/my_orders',
+        params: { order_id: order_id },
+      });
+    } else {
+      console.log('No order_id found for this notification.');
+    }
+  };
+
   const renderItem = ({ item }: { item: Notification }) => (
-    <View style={[styles.notificationItem, !item.is_read && styles.unreadItem]}>
-      <View style={styles.notificationContent}>
-        <Text style={styles.notificationMessage}>{item.message}</Text>
-        <Text style={styles.notificationDate}>
-          {new Date(item.created_at).toLocaleString()}
-        </Text>
+    <TouchableOpacity onPress={() => handleNotificationPress(item.order_id)}>
+      <View style={[styles.notificationItem, !item.is_read && styles.unreadItem]}>
+        <View style={styles.notificationContent}>
+          <Text style={styles.notificationMessage}>{item.message}</Text>
+          <Text style={styles.notificationDate}>
+            {new Date(item.created_at).toLocaleString()}
+          </Text>
+        </View>
+        {!item.is_read && <View style={styles.unreadDot} />}
       </View>
-      {!item.is_read && <View style={styles.unreadDot} />}
-    </View>
+    </TouchableOpacity>
   );
 
   return (

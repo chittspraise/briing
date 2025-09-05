@@ -1,18 +1,22 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useNavigation } from '@react-navigation/native';
 import {
+  Image,
+  StyleSheet,
   View,
   Text,
-  StyleSheet,
-  TouchableOpacity,
-  Image,
-  SafeAreaView,
-  FlatList,
-  Dimensions,
   ScrollView,
+  TouchableOpacity,
+  RefreshControl,
+  TextInput,
+  Dimensions,
+  FlatList,
   NativeSyntheticEvent,
   NativeScrollEvent,
   Linking,
 } from 'react-native';
+import { useNotifications } from '@/app/providers/notificationProvider';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { supabase } from '@/supabaseClient';
@@ -20,11 +24,17 @@ import { stores } from '../../../constants/stores';
 
 const screenWidth = Dimensions.get('window').width;
 
-const renderStars = (rating: number) => '⭐'.repeat(Math.round(rating));
+const renderStars = (rating: number) => (
+  <Text>{'⭐'.repeat(Math.round(rating))}</Text>
+);
 
-
-
-const PaginationDots = ({ count, activeIndex }: { count: number; activeIndex: number }) => (
+const PaginationDots = ({
+  count,
+  activeIndex,
+}: {
+  count: number;
+  activeIndex: number;
+}) => (
   <View style={styles.paginationContainer}>
     {Array.from({ length: count }).map((_, index) => (
       <View
@@ -38,30 +48,33 @@ const PaginationDots = ({ count, activeIndex }: { count: number; activeIndex: nu
   </View>
 );
 
-const HomeScreen: React.FC = () => {
-  type Order = {
-    id: number;
-    created_at: string;
-    traveler_reward: number;
-    price: number;
-    vat_estimate: number;
-    item_name: string;
-    destination: string | null;
-    source_country: string | null;
-    wait_time: string | null;
-    image_url: string | null;
-    user_id: string;
-    store: string | null;
-    first_name: string;
-    avatar: string;
-    rating: number;
-    images: string[];
-    details: string | null;
-  };
+type Order = {
+  id: number;
+  created_at: string;
+  traveler_reward: number;
+  price: number;
+  vat_estimate: number;
+  item_name: string;
+  destination: string | null;
+  source_country: string | null;
+  wait_time: string | null;
+  image_url: string | null;
+  user_id: string;
+  store: string | null;
+  first_name: string;
+  avatar: string;
+  rating: number;
+  images: string[];
+  details: string | null;
+  product_url: string | null;
+};
+
+export default function HomeScreen() {
+  const { notificationCount } = useNotifications();
 
   const [orders, setOrders] = useState<Order[]>([]);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
-  
+
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [trendingProducts, setTrendingProducts] = useState<any[]>([]);
   const [firstName, setFirstName] = useState('');
@@ -69,7 +82,10 @@ const HomeScreen: React.FC = () => {
 
   useEffect(() => {
     const fetchCurrentUser = async () => {
-      const { data: { user }, error } = await supabase.auth.getUser();
+      const {
+        data: { user },
+        error,
+      } = await supabase.auth.getUser();
       if (error || !user) {
         console.error('Failed to fetch user:', error);
         return;
@@ -99,7 +115,9 @@ const HomeScreen: React.FC = () => {
     try {
       const { data, error } = await supabase
         .from('product_orders')
-        .select('id, item_name, image_url, price, store, source_country, product_url')
+        .select(
+          'id, item_name, image_url, price, store, source_country, product_url'
+        )
         .order('created_at', { ascending: false })
         .limit(10);
 
@@ -114,7 +132,8 @@ const HomeScreen: React.FC = () => {
   const fetchOrders = async () => {
     const { data: ordersData, error: ordersError } = await supabase
       .from('product_orders')
-      .select(`
+      .select(
+        `
         id,
         created_at,
         traveler_reward,
@@ -129,7 +148,8 @@ const HomeScreen: React.FC = () => {
         store,
         details,
         product_url
-      `)
+      `
+      )
       .eq('status', 'pending')
       .order('created_at', { ascending: false });
 
@@ -144,9 +164,7 @@ const HomeScreen: React.FC = () => {
     }
 
     const userIds = Array.from(
-      new Set(
-        ordersData.map((o) => o.user_id).filter((id) => id !== null)
-      )
+      new Set(ordersData.map((o) => o.user_id).filter((id) => id !== null))
     );
 
     const { data: profilesData, error: profilesError } = await supabase
@@ -180,9 +198,7 @@ const HomeScreen: React.FC = () => {
       }
     }
 
-    const profilesMap = new Map(
-      (profilesData ?? []).map((p) => [p.id, p])
-    );
+    const profilesMap = new Map((profilesData ?? []).map((p) => [p.id, p]));
 
     const mappedOrders = ordersData.map((order) => {
       const profile = profilesMap.get(order.user_id);
@@ -195,7 +211,7 @@ const HomeScreen: React.FC = () => {
         avatar:
           profile?.image_url && profile.image_url.trim() !== ''
             ? profile.image_url
-            : null,
+            : '',
         rating: avgRating,
         images:
           order.image_url && order.image_url.trim() !== ''
@@ -208,7 +224,7 @@ const HomeScreen: React.FC = () => {
   };
 
   const openStore = (url: string, name: string) => {
-    router.push({ pathname: "/storePage", params: { url, name } });
+    router.push({ pathname: '/storePage', params: { url, name } });
   };
 
   const handleScroll =
@@ -220,16 +236,24 @@ const HomeScreen: React.FC = () => {
     };
 
   const renderStoreCard = ({ item }: { item: any }) => (
-    <TouchableOpacity style={styles.storeCard} onPress={() => openStore(item.link, item.name)}>
+    <TouchableOpacity
+      style={styles.storeCard}
+      onPress={() => openStore(item.link, item.name)}
+    >
       <Image source={{ uri: item.logo }} style={styles.storeLogo} />
       <Text style={styles.storeName}>{item.name}</Text>
     </TouchableOpacity>
   );
 
   const renderTrendingProductCard = ({ item }: { item: any }) => (
-    <TouchableOpacity style={styles.trendingCard} onPress={() => router.push({ pathname: '/ProductPage', params: { ...item } })}>
+    <TouchableOpacity
+      style={styles.trendingCard}
+      onPress={() => router.push({ pathname: '/ProductPage', params: { ...item } })}
+    >
       <Image source={{ uri: item.image_url }} style={styles.productImage} />
-      <Text style={styles.productName} numberOfLines={1}>{item.item_name}</Text>
+      <Text style={styles.productName} numberOfLines={1}>
+        {item.item_name}
+      </Text>
       <Text style={styles.price}>ZAR{item.price}</Text>
       {item.product_url && (
         <TouchableOpacity
@@ -241,16 +265,18 @@ const HomeScreen: React.FC = () => {
       )}
       <TouchableOpacity
         style={styles.offerButton}
-        onPress={() => router.push({
-          pathname: '/productlink',
-          params: {
-            url: item.store,
-            name: item.store,
-            images: JSON.stringify([item.image_url]),
-            productName: item.item_name,
-            price: item.price,
-          },
-        })}
+        onPress={() =>
+          router.push({
+            pathname: '/productlink',
+            params: {
+              url: item.store,
+              name: item.store,
+              images: JSON.stringify([item.image_url]),
+              productName: item.item_name,
+              price: item.price,
+            },
+          })
+        }
       >
         <Text style={styles.offerButtonText}>Order this item</Text>
       </TouchableOpacity>
@@ -262,16 +288,35 @@ const HomeScreen: React.FC = () => {
       <ScrollView>
         <View style={styles.container}>
           <View style={styles.profileRow}>
-            <Image source={avatarUrl ? { uri: avatarUrl } : require('../../../assets/images/icon.png')} style={styles.avatar} />
-            <View>
+            <Image
+              source={
+                avatarUrl
+                  ? { uri: avatarUrl }
+                  : require('../../../assets/images/icon.png')
+              }
+              style={styles.avatar}
+            />
+            <View style={{ flex: 1 }}>
               <Text style={styles.welcomeText}>Welcome</Text>
               <Text style={styles.usernameText}>{firstName || 'User'}</Text>
             </View>
+            <TouchableOpacity
+              onPress={() => router.push('/(tabs)/Profile/notifications')}
+            >
+              <Ionicons name="notifications-outline" size={24} color="white" />
+              {notificationCount > 0 && (
+                <View style={styles.badge}>
+                  <Text style={styles.badgeText}>{notificationCount}</Text>
+                </View>
+              )}
+            </TouchableOpacity>
           </View>
 
           <View style={styles.headerSection}>
             <Text style={styles.headerText}>Shop Internationally</Text>
-            <Text style={styles.subText}>Get anything delivered by travelers.</Text>
+            <Text style={styles.subText}>
+              Get anything delivered by travelers.
+            </Text>
           </View>
 
           <TouchableOpacity
@@ -288,7 +333,10 @@ const HomeScreen: React.FC = () => {
             </View>
           </TouchableOpacity>
 
-          <Text style={styles.sectionDescription}>Travelling? &quot;Briing&quot; some items for shoppers and get a healthy reward.</Text>
+          <Text style={styles.sectionDescription}>
+            Travelling? &quot;Briing&quot; some items for shoppers and get a
+            healthy reward.
+          </Text>
 
           <TouchableOpacity
             style={[styles.travelBanner, { marginTop: 20 }]}
@@ -299,18 +347,23 @@ const HomeScreen: React.FC = () => {
               style={styles.travelImage}
             />
             <View style={styles.travelOverlay}>
-              <Ionicons name="airplane" size={20} color="#000" style={styles.planeIcon} />
+              <Ionicons
+                name="airplane"
+                size={20}
+                color="#000"
+                style={styles.planeIcon}
+              />
               <Text style={styles.travelText}>Travel</Text>
             </View>
           </TouchableOpacity>
 
           <View style={styles.storesSection}>
             <View style={styles.storesSectionHeader}>
-            <Text style={styles.sectionTitle}>ORDER FROM ONLINE STORE</Text>
-            <TouchableOpacity onPress={() => router.push('/all-stores')}>
-              <Text style={styles.seeAllText}>SEE ALL</Text>
-            </TouchableOpacity>
-          </View>
+              <Text style={styles.sectionTitle}>ORDER FROM ONLINE STORE</Text>
+              <TouchableOpacity onPress={() => router.push('/all-stores')}>
+                <Text style={styles.seeAllText}>SEE ALL</Text>
+              </TouchableOpacity>
+            </View>
             <FlatList
               data={stores.slice(0, 5)}
               renderItem={renderStoreCard}
@@ -341,7 +394,10 @@ const HomeScreen: React.FC = () => {
               onScroll={handleScroll(setActiveTrendingIndex)}
               contentContainerStyle={styles.storeList}
             />
-            <PaginationDots count={trendingProducts.length} activeIndex={activeTrendingIndex} />
+            <PaginationDots
+              count={trendingProducts.length}
+              activeIndex={activeTrendingIndex}
+            />
           </View>
 
           <Text style={styles.sectionTitle}>Most Recent Orders</Text>
@@ -352,7 +408,10 @@ const HomeScreen: React.FC = () => {
           horizontal
           keyExtractor={(item) => item.id.toString()}
           showsHorizontalScrollIndicator={true}
-          contentContainerStyle={[styles.horizontalScroll, { paddingHorizontal: 20 }]}
+          contentContainerStyle={[
+            styles.horizontalScroll,
+            { paddingHorizontal: 20 },
+          ]}
           renderItem={({ item }) => {
             const chatId = currentUserId
               ? `${item.id.toString()}_${currentUserId}_${item.user_id}`
@@ -362,9 +421,21 @@ const HomeScreen: React.FC = () => {
               <View style={styles.card}>
                 <View style={styles.profileRow}>
                   {item.avatar ? (
-                    <Image source={{ uri: item.avatar }} style={styles.avatarSmall} />
+                    <Image
+                      source={{ uri: item.avatar }}
+                      style={styles.avatarSmall}
+                    />
                   ) : (
-                    <View style={[styles.avatarSmall, { backgroundColor: '#444', justifyContent: 'center', alignItems: 'center' }]}>
+                    <View
+                      style={[
+                        styles.avatarSmall,
+                        {
+                          backgroundColor: '#444',
+                          justifyContent: 'center',
+                          alignItems: 'center',
+                        },
+                      ]}
+                    >
                       <Ionicons name="person" size={24} color="#999" />
                     </View>
                   )}
@@ -376,7 +447,9 @@ const HomeScreen: React.FC = () => {
                     <Text style={styles.rating}>
                       {renderStars(item.rating)} ({item.rating.toFixed(1)})
                     </Text>
-                    <Text style={styles.time}>{new Date(item.created_at).toLocaleDateString()}</Text>
+                    <Text style={styles.time}>
+                      {new Date(item.created_at).toLocaleDateString()}
+                    </Text>
                   </View>
                 </View>
 
@@ -390,13 +463,18 @@ const HomeScreen: React.FC = () => {
                     showsHorizontalScrollIndicator={true}
                     renderItem={({ item: uri }) =>
                       uri ? (
-                        <Image source={{ uri }} style={styles.productImage} />
+                        <Image
+                          source={{ uri }}
+                          style={styles.productImage}
+                        />
                       ) : null
                     }
                   />
                 )}
 
-                <Text style={styles.price}>Reward: ZAR {item.traveler_reward}</Text>
+                <Text style={styles.price}>
+                  Reward: ZAR {item.traveler_reward}
+                </Text>
                 <Text style={styles.product}>
                   Price: ZAR{item.price} + Tax: ZAR{item.vat_estimate}
                 </Text>
@@ -413,7 +491,8 @@ const HomeScreen: React.FC = () => {
                 <TouchableOpacity
                   style={styles.offerButton}
                   onPress={() => {
-                    if (!currentUserId) return alert('Please log in to chat.');
+                    if (!currentUserId)
+                      return alert('Please log in to chat.');
                     router.push({
                       pathname: '/(tabs)/Messages/[chatId]',
                       params: {
@@ -433,21 +512,26 @@ const HomeScreen: React.FC = () => {
                 <TouchableOpacity
                   style={[styles.offerButton, { backgroundColor: '#0a0' }]}
                   onPress={() => {
-                    if (!currentUserId) return alert('Please log in to accept.');
+                    if (!currentUserId)
+                      return alert('Please log in to accept.');
                     router.push({
                       pathname: '/(tabs)/Orders/confirm/[confirmOrder]',
                       params: { confirmOrder: item.id.toString() },
                     });
                   }}
                 >
-                  <Text style={[styles.offerButtonText, { color: '#fff' }]}>Accept</Text>
+                  <Text style={[styles.offerButtonText, { color: '#fff' }]}>
+                    Accept
+                  </Text>
                 </TouchableOpacity>
 
                 <View style={styles.infoBox}>
                   <Text style={styles.label}>Deliver to:</Text>
                   <Text style={styles.value}>{item.destination ?? '-'}</Text>
                   <Text style={styles.label}>From:</Text>
-                  <Text style={styles.value}>{item.source_country ?? '-'}</Text>
+                  <Text style={styles.value}>
+                    {item.source_country ?? '-'}
+                  </Text>
                   <Text style={styles.label}>Wait time:</Text>
                   <Text style={styles.value}>{item.wait_time ?? '-'}</Text>
                   {item.details && (
@@ -460,13 +544,11 @@ const HomeScreen: React.FC = () => {
               </View>
             );
           }}
-          />
+        />
       </ScrollView>
     </SafeAreaView>
   );
-};
-
-export default HomeScreen;
+}
 
 const styles = StyleSheet.create({
   safeArea: {
@@ -647,7 +729,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     resizeMode: 'contain',
   },
-  
+
   price: {
     color: '#0f0',
     fontSize: 16,
@@ -743,5 +825,21 @@ const styles = StyleSheet.create({
   },
   inactiveDot: {
     backgroundColor: '#777',
+  },
+  badge: {
+    position: 'absolute',
+    right: -6,
+    top: -3,
+    backgroundColor: 'red',
+    borderRadius: 8,
+    width: 16,
+    height: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  badgeText: {
+    color: 'white',
+    fontSize: 10,
+    fontWeight: 'bold',
   },
 });

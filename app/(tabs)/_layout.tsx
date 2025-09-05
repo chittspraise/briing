@@ -1,11 +1,11 @@
 import { Tabs } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { View, Text, StyleSheet } from 'react-native';
-import { supabase } from '@/supabaseClient';
-
 import { HapticTab } from '@/components/HapticTab';
+import { useNotifications } from '../providers/notificationProvider';
+import { useMessages } from '../providers/messageProvider';
 
 const TabBarIconWithBadge = ({ name, color, badgeCount }: { name: React.ComponentProps<typeof Ionicons>['name']; color: string; badgeCount: number }) => {
   return (
@@ -22,30 +22,8 @@ const TabBarIconWithBadge = ({ name, color, badgeCount }: { name: React.Componen
 
 export default function TabLayout() {
   const insets = useSafeAreaInsets();
-  const [unreadCount, setUnreadCount] = useState(0);
-
-  useEffect(() => {
-    const fetchTotalUnreadCount = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      const { data, error } = await supabase.rpc('get_total_unread_count', { user_id_param: user.id });
-      if (!error) {
-        setUnreadCount(data);
-      }
-    };
-
-    fetchTotalUnreadCount();
-
-    const channel = supabase
-      .channel('public:messages')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'messages' }, fetchTotalUnreadCount)
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, []);
+  const { notificationCount } = useNotifications();
+  const { unreadCount } = useMessages();
 
   return (
     <Tabs
@@ -106,7 +84,11 @@ export default function TabLayout() {
         options={{
           title: 'Profile',
           tabBarLabel: 'Profile',
-          tabBarIcon: ({ color }) => <Ionicons name="person-outline" size={24} color={color} />,
+          tabBarIcon: ({ color }) => <TabBarIconWithBadge 
+  name="person-outline"
+  color={color} 
+  badgeCount={notificationCount} 
+/>,
         }}
       />
     </Tabs>

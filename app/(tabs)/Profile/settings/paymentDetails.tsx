@@ -115,6 +115,16 @@ const PaymentDetailsScreen: React.FC = () => {
 
       if (transactionError) throw transactionError;
 
+      // Add notification for the user who initiated the payout
+      const { error: notificationError } = await supabase.from('notifications').insert({
+        user_id: user.id,
+        message: `Your payout of ZAR ${amountToCashOut.toFixed(2)} has been processed successfully.`,
+      });
+
+      if (notificationError) {
+        console.error('Error creating notification:', notificationError);
+      }
+
       Alert.alert('Success', `Successfully cashed out ZAR ${amountToCashOut.toFixed(2)}.`, [
         { text: 'OK', onPress: () => router.push('/(tabs)/Profile/settings/wallet') },
       ]);

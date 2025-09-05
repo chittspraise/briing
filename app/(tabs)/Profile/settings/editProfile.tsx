@@ -4,9 +4,7 @@ import * as FileSystem from 'expo-file-system';
 import * as ImagePicker from 'expo-image-picker';
 import React, { useEffect, useState } from 'react';
 import {
- 
   Image,
-  
   ScrollView,
   StyleSheet,
   Text,

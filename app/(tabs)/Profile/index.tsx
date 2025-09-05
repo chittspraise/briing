@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -13,6 +13,8 @@ import { Feather, Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { supabase } from '@/supabaseClient';
 import { useRouter } from 'expo-router';
+import { useNotifications } from '@/app/providers/notificationProvider';
+
 import type { StackNavigationProp } from '@react-navigation/stack';
 
 type RootStackParamList = {
@@ -38,11 +40,13 @@ const renderStars = (rating: number) => {
 const ProfileScreen = () => {
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
   const router = useRouter();
+  const { notificationCount } = useNotifications();
 
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [rating, setRating] = useState(5);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  
 
   const fetchProfile = useCallback(async () => {
     const {
@@ -138,10 +142,11 @@ const ProfileScreen = () => {
         {/* Section: Account */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Account</Text>
-          <Option
+          <OptionWithBadge
             label="Notifications"
             icon={<Ionicons name="notifications-outline" size={20} color="#fff" />}
             onPress={() => navigation.navigate('notifications')}
+            badgeCount={notificationCount}
           />
           <Option
             label="Settings"
@@ -204,6 +209,30 @@ const Option = ({
   <TouchableOpacity style={styles.option} onPress={onPress}>
     <Text style={styles.optionText}>{label}</Text>
     {icon}
+  </TouchableOpacity>
+);
+
+const OptionWithBadge = ({
+  label,
+  icon,
+  onPress,
+  badgeCount,
+}: {
+  label: string;
+  icon: React.ReactNode;
+  onPress?: () => void;
+  badgeCount: number;
+}) => (
+  <TouchableOpacity style={styles.option} onPress={onPress}>
+    <Text style={styles.optionText}>{label}</Text>
+    <View>
+      {icon}
+      {badgeCount > 0 && (
+        <View style={styles.badge}>
+          <Text style={styles.badgeText}>{badgeCount}</Text>
+        </View>
+      )}
+    </View>
   </TouchableOpacity>
 );
 
@@ -286,6 +315,22 @@ const styles = StyleSheet.create({
   ratingText: {
     color: '#ccc',
     fontSize: 14,
+  },
+  badge: {
+    position: 'absolute',
+    right: -6,
+    top: -3,
+    backgroundColor: 'red',
+    borderRadius: 8,
+    width: 16,
+    height: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  badgeText: {
+    color: 'white',
+    fontSize: 10,
+    fontWeight: 'bold',
   },
 });
 

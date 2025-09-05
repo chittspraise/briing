@@ -4,7 +4,7 @@
     "slug": "briing",
     "version": "1.0.1",
     "orientation": "portrait",
-    "icon": "./assets/images/Briing in Bold Contrast.png",
+    "icon": "./assets/images/logofinal.png",
     "scheme": "briing",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
@@ -17,7 +17,7 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/Briing in Bold Contrast.png",
+        "foregroundImage": "./assets/images/logofinal.png",
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,

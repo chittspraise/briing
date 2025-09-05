@@ -94,21 +94,37 @@ export default function SummaryPage() {
     };
 
     try {
-      let error;
+      let orderIdToNotify = orderId;
       if (orderId) {
         const { error: updateError } = await supabase.from('product_orders').update(payload).eq('id', orderId);
         error = updateError;
       } else {
-        const { error: insertError } = await supabase.from('product_orders').insert(payload);
+        const { data, error: insertError } = await supabase.from('product_orders').insert(payload).select('id').single();
         error = insertError;
+        if (data) {
+          orderIdToNotify = data.id;
+        }
       }
       
       if (error) {
         Toast.show({ type: 'error', text1: 'Error', text2: `Could not ${orderId ? 'update' : 'create'} order` });
         console.error('Supabase error:', error);
       } else {
-        if (!orderId) {
-          clearOrder();
+        if (orderIdToNotify) {
+          // Add notification for the user who created the order
+          const { error: notificationError } = await supabase.from('notifications').insert({
+            user_id: userId,
+            message: `Your order for ${item_name} has been created successfully.`,
+            order_id: orderIdToNotify,
+          });
+
+          if (notificationError) {
+            console.error('Error creating notification:', notificationError);
+          }
+
+          if (!orderId) {
+            clearOrder();
+          }
         }
         Toast.show({
           type: 'success',

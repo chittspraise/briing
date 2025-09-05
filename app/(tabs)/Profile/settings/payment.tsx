@@ -72,7 +72,7 @@ const PayoutMethodScreen: React.FC = () => {
             </View>
             <View style={styles.optionTextContainer}>
               <Text style={styles.optionTitle}>
-                FNB Account <Text style={styles.tag}>RECOMMENDED</Text>
+                FNB Account <Text style={styles.tag}> RECOMMENDED</Text>
               </Text>
               <Text style={styles.optionDescription}>
                 Receive payouts directly to your First National Bank account in ZAR.

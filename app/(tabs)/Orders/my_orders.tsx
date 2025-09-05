@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import {
   FlatList,
   Image,
@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import Toast from 'react-native-toast-message';
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { supabase } from '@/supabaseClient';
 import { openStripeCheckout, setupStripePaymentSheet } from '@/app/lib/stripe';
 import RatingModal from '@/components/RatingModal';
@@ -58,11 +58,10 @@ const renderStars = (rating: number) => {
   const fullStars = Math.floor(rating);
   const halfStar = rating - fullStars >= 0.5 ? 1 : 0;
   const emptyStars = 5 - fullStars - halfStar;
-  return (
-    '★'.repeat(fullStars) +
+  const stars = '★'.repeat(fullStars) +
     (halfStar ? '½' : '') +
-    '☆'.repeat(emptyStars)
-  );
+    '☆'.repeat(emptyStars);
+  return <Text>{stars}</Text>;
 };
 
 function generateChatId(orderId: string, userA: string, userB: string): string {
@@ -78,6 +77,8 @@ const MyOrdersPage = () => {
   const [ratingModalVisible, setRatingModalVisible] = useState(false);
   const [ratingOrder, setRatingOrder] = useState<Order | null>(null);
   const [ratings, setRatings] = useState<Rating[]>([]);
+  const params = useLocalSearchParams();
+  const flatListRef = useRef<FlatList>(null);
 
   useEffect(() => {
     const fetchUserAndOrders = async () => {
@@ -90,6 +91,16 @@ const MyOrdersPage = () => {
     fetchUserAndOrders();
   }, []);
 
+  useEffect(() => {
+    if (params.order_id && orders.length > 0) {
+      const orderId = parseInt(params.order_id as string, 10);
+      const index = orders.findIndex(o => o.id === orderId);
+      if (index !== -1) {
+        flatListRef.current?.scrollToIndex({ animated: true, index });
+      }
+    }
+  }, [params.order_id, orders]);
+  
   const fetchOrders = async (userId: string) => {
     setLoading(true);
     const { data: productOrders } = await supabase
@@ -219,14 +230,25 @@ const MyOrdersPage = () => {
       return;
     }
 
-    if (newStatus === 'accepted') {
-      router.push({ pathname: '/(tabs)/Orders/confirm/[confirmOrder]', params: { confirmOrder: order.id.toString() } });
-      return;
-    }
-
     try {
       const { error: productOrderError } = await supabase.from('product_orders').update({ status: newStatus }).eq('id', order.id);
       if (productOrderError) throw new Error(`Failed to update product order: ${productOrderError.message}`);
+
+      // Add notification logic here
+      const notificationMessage = `Your order for ${order.item_name} has been updated to ${newStatus}.`;
+      const recipientUserId = currentUserId === order.user_id ? order.traveler_id : order.user_id;
+
+      if (recipientUserId) {
+        const { error: notificationError } = await supabase.from('notifications').insert({
+          user_id: recipientUserId,
+          message: notificationMessage,
+          order_id: order.id,
+        });
+
+        if (notificationError) {
+          console.error('Error creating notification:', notificationError);
+        }
+      }
 
       if (order.confirmed_id) {
         const { error: confirmedOrderError } = await supabase.from('confirmed_orders').update({ status: newStatus }).eq('id', order.confirmed_id);
@@ -277,6 +299,17 @@ const MyOrdersPage = () => {
           }]);
         if (transactionError) throw new Error(`Transaction insert failed: ${transactionError.message}`);
 
+        // Add notification for the traveler who received the payout
+        const { error: notificationError } = await supabase.from('notifications').insert({
+          user_id: order.traveler_id,
+          message: `You have received a payout of ZAR ${payoutAmount.toFixed(2)} for the order ${order.item_name}.`,
+          order_id: order.id,
+        });
+
+        if (notificationError) {
+          console.error('Error creating notification:', notificationError);
+        }
+
         Toast.show({ type: 'success', text1: 'Traveler Credited', text2: `ZAR ${payoutAmount.toFixed(2)} has been paid.` });
       }
 
@@ -287,6 +320,9 @@ const MyOrdersPage = () => {
       if (currentUserId) {
         fetchOrders(currentUserId);
       }
+    }
+    if (newStatus === 'accepted') {
+      router.push({ pathname: '/(tabs)/Orders/confirm/[confirmOrder]', params: { confirmOrder: order.id.toString() } });
     }
   };
 
@@ -526,6 +562,7 @@ const MyOrdersPage = () => {
   return (
     <>
       <FlatList
+        ref={flatListRef}
         data={orders}
         keyExtractor={item => item.id.toString()}
         renderItem={({ item }) => renderCard(item)}

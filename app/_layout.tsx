@@ -7,6 +7,8 @@ import { useColorScheme } from '@/hooks/useColorScheme';
 import { OrderProvider } from './providers/orderProvider';
 import { TravelProvider } from './providers/travelProvider';
 import { AuthProvider, useAuth } from './providers/authProvider'; // Import AuthProvider and useAuth
+import NotificationProvider from './providers/notificationProvider';
+import MessageProvider from './providers/messageProvider';
 import { useEffect, useState } from 'react';
 import { StripeProvider } from '@stripe/stripe-react-native';
 import * as WebBrowser from 'expo-web-browser';
@@ -52,21 +54,29 @@ const toastConfig = {
 
 WebBrowser.maybeCompleteAuthSession();
 
+import { usePathname } from 'expo-router';
+
+// ... (other imports)
+
 function RootLayoutNav() {
   const colorScheme = useColorScheme();
   const { session, loading } = useAuth();
-  const [navigated, setNavigated] = useState(false);
+  const pathname = usePathname();
 
   useEffect(() => {
-    if (!loading && !navigated) {
-      if (session) {
-        router.replace('/(tabs)/Home');
-      } else {
-        router.replace('/');
-      }
-      setNavigated(true);
+    if (loading) return;
+
+    const isPublicRoute = ['/', '/forgot-password', '/reset-password', '/must-be-signed-in'].includes(pathname);
+
+    // If the user is logged in, and they are on a public-only route like the index, redirect them to the app's home screen.
+    if (session && pathname === '/') {
+      router.replace('/(tabs)/Home');
+    } 
+    // If the user is not logged in, and they are trying to access a protected route, redirect them to the sign-in page.
+    else if (!session && !isPublicRoute) {
+      router.replace('/must-be-signed-in');
     }
-  }, [session, loading, navigated]);
+  }, [session, loading, pathname]);
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
@@ -76,19 +86,23 @@ function RootLayoutNav() {
       >
         <OrderProvider>
           <TravelProvider>
-            <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-              <Stack screenOptions={{ headerShown: false }}>
-                <Stack.Screen name="index" />
-                <Stack.Screen name="forgot-password" />
-                <Stack.Screen name="reset-password" />
-                <Stack.Screen name="must-be-signed-in" />
-                <Stack.Screen name="(tabs)" />
-                <Stack.Screen name="+not-found" />
-                <Stack.Screen name="travelPage" />
-                <Stack.Screen name="OrdersPage" />
-              </Stack>
-              <StatusBar style="auto" />
-            </ThemeProvider>
+            <NotificationProvider>
+              <MessageProvider>
+                <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+                  <Stack screenOptions={{ headerShown: false }}>
+                    <Stack.Screen name="index" />
+                    <Stack.Screen name="forgot-password" />
+                    <Stack.Screen name="reset-password" />
+                    <Stack.Screen name="must-be-signed-in" />
+                    <Stack.Screen name="(tabs)" />
+                    <Stack.Screen name="+not-found" />
+                    <Stack.Screen name="travelPage" />
+                    <Stack.Screen name="OrdersPage" />
+                  </Stack>
+                  <StatusBar style="auto" />
+                </ThemeProvider>
+              </MessageProvider>
+            </NotificationProvider>
           </TravelProvider>
         </OrderProvider>
         <Toast config={toastConfig} />
